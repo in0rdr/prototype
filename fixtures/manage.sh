@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Cleanup and start a fresh env.
 
-PEER1="fixtures_peer1"
-PEER2="fixtures_peer2"
-BOOTNODE="fixtures_bootnode"
-MONGO="fixtures_mongo"
+PEER1="prototype_peer1"
+PEER2="prototype_peer2"
+BOOTNODE="prototype_bootnode"
+MONGO="prototype_mongo"
+IPFS="prototype_ipfs"
 
 if [ ! -e "docker-compose.yaml" ];then
   echo "docker-compose.yaml not found."
@@ -13,13 +14,13 @@ fi
 
 function clean(){
 
-  lines=`docker ps -a | grep 'fixtures_' | wc -l`
+  lines=`docker ps -a | grep 'prototype_' | wc -l`
 
   if [ "$lines" -gt 0 ]; then
-    docker ps -a | grep 'fixtures_' | awk '{print $1}' | xargs docker rm -f
+    docker ps -a | grep 'prototype_' | awk '{print $1}' | xargs docker rm -f
   fi
 
-  lines=`docker images | grep 'thesis' | wc -l`
+  lines=`docker images | grep 'prototype' | wc -l`
   if [ "$lines" -gt 0 ]; then
     docker images | grep 'thesis' | awk '{print $1}' | xargs docker rmi -f
   fi
@@ -30,47 +31,37 @@ function clean(){
   #  docker rm -f `docker ps -aq`
   # fi
 
-  echo "Building thesis images (if not latest already)"
-  docker build -t thesis/bootnode:latest bootnode
-  docker build -t thesis/geth:latest geth
-  docker build -t thesis/mongo:latest mongo
+  echo "Building prototype images (if not latest already)"
+  docker build -t prototype/bootnode:latest bootnode
+  docker build -t prototype/geth:latest geth
+  docker build -t prototype/mongo:latest mongo
 
 }
 
 function up(){
-  #docker-compose up --force-recreate &
+  docker run -d --name=$IPFS ipfs/go-ipfs
 
-  docker run -d --name=$MONGO thesis/mongo:latest
+  docker run -d --name=$MONGO prototype/mongo:latest
 
-  docker run -d --name=$BOOTNODE thesis/bootnode:latest
+  docker run -d --name=$BOOTNODE prototype/bootnode:latest
 
   # get bootnode enode
-  bootnode=`./getbootnodeurl.sh $BOOTNODE`
+  bootnode=`./getnodeurl.sh $BOOTNODE log`
   while [[ $bootnode != enode* ]]; do
     sleep 1
-    bootnode=`./getbootnodeurl.sh $BOOTNODE`
+    bootnode=`./getnodeurl.sh $BOOTNODE log`
   done
 
-  docker run -d --name=$PEER1 thesis/geth:latest 1 $bootnode
-  docker run -d --name=$PEER2 thesis/geth:latest 0 $bootnode
-
-  # get peer2 enode
-  peer2enode=`./getnodeurl.sh $PEER2`
-  while [[ $peer2enode != enode* ]]; do
-    sleep 5
-    peer2enode=`./getnodeurl.sh $PEER2`
-  done
-
-  # sync nodes
-  #docker exec $PEER1 geth attach --exec "admin.addPeer(\"$peer2enode\")"
-
-  #fg
+  docker run -d --name=$PEER1 prototype/geth:latest 1 $bootnode
+  docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
 }
 
 function down(){
   docker stop $PEER1
   docker stop $PEER2
-  #docker-compose down;
+  docker stop $BOOTNODE
+  docker stop $MONGO
+  docker stop $IPFS
 }
 
 for opt in "$@"
