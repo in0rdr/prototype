@@ -6,6 +6,7 @@ PEER2="prototype_peer2"
 BOOTNODE="prototype_bootnode"
 MONGO="prototype_mongo"
 IPFS="prototype_ipfs"
+API="prototype_api"
 
 if [ ! -e "docker-compose.yaml" ];then
   echo "docker-compose.yaml not found."
@@ -32,17 +33,17 @@ function clean(){
   # fi
 
   echo "Building prototype images (if not latest already)"
+  docker build -t prototype/mongo:latest mongo
+  docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
-  docker build -t prototype/mongo:latest mongo
-
 }
 
 function up(){
   docker run -d --name=$IPFS ipfs/go-ipfs
-
   docker run -d --name=$MONGO prototype/mongo:latest
-
+  mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
+  docker run -d -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
   docker run -d --name=$BOOTNODE prototype/bootnode:latest
 
   # get bootnode enode
@@ -60,6 +61,7 @@ function down(){
   docker stop $PEER1
   docker stop $PEER2
   docker stop $BOOTNODE
+  docker stop $API
   docker stop $MONGO
   docker stop $IPFS
 }
