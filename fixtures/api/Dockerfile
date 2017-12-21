@@ -5,9 +5,9 @@ RUN apk add --no-cache --virtual .ruby-builddeps build-base ruby-dev nodejs tzda
 
 RUN mkdir /api
 WORKDIR /api
-COPY Gemfile /api/Gemfile
+COPY startrails.sh /api
+COPY ../../api /api
 RUN bundle install
-COPY . /api
 
 EXPOSE 30000
 

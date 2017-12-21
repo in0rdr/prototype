@@ -7,6 +7,8 @@ end
 
 gem 'json'
 gem 'mongoid'
+gem 'ethereum.rb'
+gem 'digest-sha3', github: 'izetex/digest-sha3-ruby', ref: 'c266a32868b95349f39a61395ff8c78f98951410'
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '~> 5.1.4'
 # Use Puma as the app server
