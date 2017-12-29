@@ -1,0 +1,29 @@
+{
+  "name": "prototype",
+  "version": "1.0.0",
+  "description": "Reputation and Reward Scheme",
+  "scripts": {
+    "console": "truffle console",
+    "test": "fixtures/test.sh",
+    "coverall": "fixtures/coveralls.sh",
+    "coverage": "./node_modules/.bin/solidity-coverage",
+    "all": "npm run test; npm run coverage; npm run coverall;"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/in0rdr/prototype.git"
+  },
+  "keywords": [],
+  "author": "Andreas Gruhler",
+  "bugs": {
+    "url": "https://github.com/in0rdr/prototype/issues"
+  },
+  "homepage": "https://github.com/in0rdr/prototype#readme",
+  "dependencies": {
+    "coveralls": "^3.0.0",
+    "ethereumjs-testrpc": "^6.0.3",
+    "solidity-coverage": "^0.4.7",
+    "truffle": "^4.0.4",
+    "zeppelin-solidity": "^1.5.0"
+  }
+}
