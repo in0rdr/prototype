@@ -8,3 +8,7 @@
 cd fixtures
 ./manage.sh restart
 ```
+
+## Solidity Tests
+- `npm run test` starts testrpc and runs the tests
+- `npm run coverage` to see test coverage
