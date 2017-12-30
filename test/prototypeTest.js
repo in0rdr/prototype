@@ -1,4 +1,5 @@
 import expectThrow from '../node_modules/zeppelin-solidity/test/helpers/expectThrow';
+import * as utils from './utils';
 
 const Customer = artifacts.require("Customer");
 const Task = artifacts.require("Task");
@@ -117,6 +118,90 @@ contract('Task', function(accounts) {
           tx = await task.start.sendTransaction({from: accounts[0], value: 999});
           var started = await task.started.call();
           assert(started, "the mitigation task should have started");
+        });
+      });
+    });
+  });
+
+  it("mitigator should upload proof of service during service time window", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await task.approve.sendTransaction({from: accounts[1]});
+          var approved = await task.approved.call();
+          assert(approved, "the mitigator should approve mitigation contracts");
+
+          tx = await task.start.sendTransaction({from: accounts[0], value: 999});
+          var started = await task.started.call();
+          assert(started, "the mitigation task should have started");
+
+          var currentNum = web3.eth.blockNumber;
+          assert(currentNum < 100, "current block number should be less than 100");
+
+          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[0]}));
+          var proof = await task.proof.call();
+          assert(!proof, "attack target should not be allowed to submit proofs");
+
+          var proofUploaded = await task.proofUploaded.call();
+          assert(!proofUploaded, "proof should not be uploaded");
+
+          tx = await task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]});
+          proof = await task.proof.call();
+          assert.equal(proof, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+
+          proofUploaded = await task.proofUploaded.call();
+          assert(proofUploaded, "proof should be uploaded");
+
+          // proof re-submission disallowed
+          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof2", {from: accounts[1]}));
+          proofUploaded = await task.proofUploaded.call();
+          proof = await task.proof.call();
+          assert(proofUploaded, "proof should be uploaded");
+          assert.equal(proof, "dummy-proof", "re-submission should not be allowed");
+        });
+      });
+    });
+  });
+
+  it("mitigator should not be upload proof after service time window expired", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await task.approve.sendTransaction({from: accounts[1]});
+          var approved = await task.approved.call();
+          assert(approved, "the mitigator should approve mitigation contracts");
+
+          tx = await task.start.sendTransaction({from: accounts[0], value: 999});
+          var started = await task.started.call();
+          assert(started, "the mitigation task should have started");
+
+          var currentNum = web3.eth.blockNumber;
+          assert(currentNum < 100, "current block number should be less than 100");
+
+          // fast forward mine 100 additional blocks
+          await utils.mine(100);
+          currentNum = web3.eth.blockNumber;
+          assert(currentNum > 100, "service window should have expired");
+
+          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]}));
+          var proofUploaded = await task.proofUploaded.call();
+          var proof = await task.proof.call();
+          assert(!proofUploaded, "proof should not be accepted");
+          assert.equal(proof, "", "proof should still be empty");
         });
       });
     });

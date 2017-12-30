@@ -11,6 +11,7 @@ contract Task {
     uint public price;
 
     string public proof; // proof of service delivery
+    bool public proofUploaded; // true after mitigator uploads first proof
     bool public approved; // true if mitigator accepts contract conditions
     bool public started; // true if price paid and task started
     uint public acknowledged; // acknowledgment of proof: 0 = unkown, 1 = ack, 2 = rej
@@ -47,12 +48,13 @@ contract Task {
     }
 
     function uploadProof(string _proof) external {
-        require(started && block.number < serviceDeadline && msg.sender == Customer(mitigator).owner());
+        require(!proofUploaded && started && block.number < serviceDeadline && msg.sender == Customer(mitigator).owner());
         proof = _proof;
+        proofUploaded = true;
     }
 
     function validateProof(uint _resp) external { //TODO: onlyAfterMitigatorRating
-        require(started && block.number < validationDeadline && msg.sender == Customer(attackTarget).owner());
+        require(proofUploaded && started && block.number < validationDeadline && msg.sender == Customer(attackTarget).owner());
         require(acknowledged == 0 && _resp <= 2);
         acknowledged = _resp;
 
