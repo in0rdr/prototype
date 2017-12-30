@@ -92,4 +92,33 @@ contract('Task', function(accounts) {
       });
     });
   });
+
+  it("attack target should start the mitigation contract", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await task.approve.sendTransaction({from: accounts[1]});
+          var approved = await task.approved.call();
+          assert(approved, "the mitigator should approve mitigation contracts");
+
+          tx = await expectThrow(task.start.sendTransaction({from: accounts[1], value: 999}));
+          assert(!started, "the mitigator is not allowed to start the task");
+
+          tx = await expectThrow(task.start.sendTransaction({from: accounts[0], value: 998}));
+          assert(!started, "the attack target needs to pay the exact amount");
+
+          tx = await task.start.sendTransaction({from: accounts[0], value: 999});
+          var started = await task.started.call();
+          assert(started, "the mitigation task should have started");
+        });
+      });
+    });
+  });
 });
