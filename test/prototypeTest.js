@@ -123,87 +123,87 @@ contract('Task', function(accounts) {
     });
   });
 
-  it("mitigator should upload proof of service during service time window", function() {
-    var cust0;
-    var cust1;
+  it("mitigator should upload proof of service during service time window", async function() {
+    console.log("test 7")
+    var cust0 = await Customer.deployed();
+    var cust1 = await Customer.new({from: accounts[1]});
 
-    return Customer.deployed().then(function(cust) {
-      cust0 = cust;
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
 
-      Customer.new({from: accounts[1]}).then(function(cust) {
-        cust1 = cust;
-      }).then(function() {
-        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
-          var tx = await task.approve.sendTransaction({from: accounts[1]});
-          var approved = await task.approved.call();
-          assert(approved, "the mitigator should approve mitigation contracts");
+    var task = await Task.new(cust0.address, cust1.address, serviceDeadline, validationDeadline, 999);
 
-          tx = await task.start.sendTransaction({from: accounts[0], value: 999});
-          var started = await task.started.call();
-          assert(started, "the mitigation task should have started");
+    await task.approve.sendTransaction({from: accounts[1]});
+    var approved = await task.approved.call();
+    assert(approved, "the mitigator should approve mitigation contracts");
 
-          var currentNum = web3.eth.blockNumber;
-          assert(currentNum < 100, "current block number should be less than 100");
+    await task.start.sendTransaction({from: accounts[0], value: 999});
+    var started = await task.started.call();
+    assert(started, "the mitigation task should have started");
 
-          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[0]}));
-          var proof = await task.proof.call();
-          assert(!proof, "attack target should not be allowed to submit proofs");
+    var currentNum = web3.eth.blockNumber;
+    console.log("currentNum", currentNum);
+    console.log("serviceDeadline", serviceDeadline);
+    assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
 
-          var proofUploaded = await task.proofUploaded.call();
-          assert(!proofUploaded, "proof should not be uploaded");
+    await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[0]}));
+    var proof = await task.proof.call();
+    assert(!proof, "attack target should not be allowed to submit proofs");
 
-          tx = await task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]});
-          proof = await task.proof.call();
-          assert.equal(proof, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+    var proofUploaded = await task.proofUploaded.call();
+    assert(!proofUploaded, "proof should not be uploaded");
 
-          proofUploaded = await task.proofUploaded.call();
-          assert(proofUploaded, "proof should be uploaded");
+    await task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]});
+    proof = await task.proof.call();
+    assert.equal(proof, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
 
-          // proof re-submission disallowed
-          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof2", {from: accounts[1]}));
-          proofUploaded = await task.proofUploaded.call();
-          proof = await task.proof.call();
-          assert(proofUploaded, "proof should be uploaded");
-          assert.equal(proof, "dummy-proof", "re-submission should not be allowed");
-        });
-      });
-    });
+    proofUploaded = await task.proofUploaded.call();
+    assert(proofUploaded, "proof should be uploaded");
+
+    // proof re-submission disallowed
+    await expectThrow(task.uploadProof.sendTransaction("dummy-proof2", {from: accounts[1]}));
+    proofUploaded = await task.proofUploaded.call();
+    proof = await task.proof.call();
+    assert(proofUploaded, "proof should be uploaded");
+    assert.equal(proof, "dummy-proof", "re-submission should not be allowed");
   });
 
-  it("mitigator should not be upload proof after service time window expired", function() {
-    var cust0;
-    var cust1;
+  it("mitigator should not be upload proof after service time window expired", async function() {
+    console.log("test 8")
+    var cust0 = await Customer.deployed();
+    var cust1 = await Customer.new({from: accounts[1]});
 
-    return Customer.deployed().then(function(cust) {
-      cust0 = cust;
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
 
-      Customer.new({from: accounts[1]}).then(function(cust) {
-        cust1 = cust;
-      }).then(function() {
-        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
-          var tx = await task.approve.sendTransaction({from: accounts[1]});
-          var approved = await task.approved.call();
-          assert(approved, "the mitigator should approve mitigation contracts");
+    var task = await Task.new(cust0.address, cust1.address, serviceDeadline, validationDeadline, 999);
 
-          tx = await task.start.sendTransaction({from: accounts[0], value: 999});
-          var started = await task.started.call();
-          assert(started, "the mitigation task should have started");
+    await task.approve.sendTransaction({from: accounts[1]});
+    var approved = await task.approved.call();
+    assert(approved, "the mitigator should approve mitigation contracts");
 
-          var currentNum = web3.eth.blockNumber;
-          assert(currentNum < 100, "current block number should be less than 100");
+    await task.start.sendTransaction({from: accounts[0], value: 999});
+    var started = await task.started.call();
+    assert(started, "the mitigation task should have started");
 
-          // fast forward mine 100 additional blocks
-          await utils.mine(100);
-          currentNum = web3.eth.blockNumber;
-          assert(currentNum > 100, "service window should have expired");
+    var currentNum = web3.eth.blockNumber;
+    console.log("currentNum", currentNum);
+    console.log("serviceDeadline", serviceDeadline);
+    assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
 
-          tx = await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]}));
-          var proofUploaded = await task.proofUploaded.call();
-          var proof = await task.proof.call();
-          assert(!proofUploaded, "proof should not be accepted");
-          assert.equal(proof, "", "proof should still be empty");
-        });
-      });
-    });
+    // fast forward mine 100 additional blocks
+    utils.mine(100);
+    currentNum = web3.eth.blockNumber;
+    console.log("currentNum", currentNum);
+    console.log("serviceDeadline", serviceDeadline);
+    assert(currentNum > serviceDeadline, "service time window should have expired");
+
+    await expectThrow(task.uploadProof.sendTransaction("dummy-proof", {from: accounts[1]}));
+    var proofUploaded = await task.proofUploaded.call();
+    var proof = await task.proof.call();
+    assert(!proofUploaded, "proof should not be accepted");
+    assert.equal(proof, "", "proof should still be empty");
   });
 });
