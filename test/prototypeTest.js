@@ -1,33 +1,93 @@
-var Customer = artifacts.require("Customer");
-var Task = artifacts.require("Task");
+import expectThrow from '../node_modules/zeppelin-solidity/test/helpers/expectThrow';
+
+const Customer = artifacts.require("Customer");
+const Task = artifacts.require("Task");
 
 contract('Customer', function(accounts) {
   it("should create a customer", function() {
-    return Customer.deployed().then(function(instance) {
-      instance.owner().then(function(owner) {
-        assert.equal(owner, accounts[0], "customer contract should be owned by first account");
-      });
+    return Customer.deployed().then(async function(instance) {
+      var owner = await instance.owner.call();
+      assert.equal(owner, accounts[0], "customer contract should be owned by first account");
     });
   });
 });
 
 contract('Task', function(accounts) {
   it("should create a mitigation contract", function() {
+    var cust0;
     var cust1;
-    var cust2;
 
     return Customer.deployed().then(function(cust) {
-      cust1 = cust;
+      cust0 = cust;
 
       Customer.new({from: accounts[1]}).then(function(cust) {
-        cust2 = cust;
+        cust1 = cust;
       }).then(function() {
-        Task.new(cust1.address, cust2.address, 100, 200, 999).then(function(task) {
-          assert(task.attackTarget(), cust1.address, "cust1 should be attack target");
-          assert(task.mitigator(), cust2.address, "cust2 should be mitigator");
-          assert(task.serviceDeadline(), 100, "service deadline should be 100");
-          assert(task.validationDeadline(), 200, "mitigation deadline should be 200");
-          assert(task.price(), 999, "price should be 999");
+        cust0.owner.call().then(addr => assert.equal(addr, accounts[0], "cust0 contract should be owned by first account"));
+        cust1.owner.call().then(addr => assert.equal(addr, accounts[1], "cust1 contract should be owned by second account"));
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(function(task) {
+          task.attackTarget.call().then(t => assert.equal(t, cust0.address, "cust0 should be attack target"));
+          task.mitigator.call().then(m => assert.equal(m, cust1.address, "cust1 should be mitigator"));
+          task.serviceDeadline.call().then(d => assert.equal(d, 100, "service deadline should be 100"));
+          task.validationDeadline.call().then(d => assert.equal(d, 200, "mitigation deadline should be 200"));
+          task.price.call().then(p => assert.equal(p, 999, "price should be 999"));
+        });
+      });
+    });
+  });
+
+  it("should only start task after mitigator approved contract parameters", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await expectThrow(task.start.sendTransaction({from: accounts[1], value: 999}));
+          var started = await task.started.call();
+          assert(!started, "task should not be started without mitigator approval");
+        });
+      });
+    });
+  });
+
+  it("attack target should not be allowed to sign the contract for the mitigator", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await expectThrow(task.approve.sendTransaction({from: accounts[0]}));
+          var approved = await task.approved.call();
+          assert(!approved, "the mitigator should approve mitigation contracts");
+        });
+      });
+    });
+  });
+
+  it("mitigator should sign and approve the mitigation contract", function() {
+    var cust0;
+    var cust1;
+
+    return Customer.deployed().then(function(cust) {
+      cust0 = cust;
+
+      Customer.new({from: accounts[1]}).then(function(cust) {
+        cust1 = cust;
+      }).then(function() {
+        Task.new(cust0.address, cust1.address, 100, 200, 999).then(async function(task) {
+          var tx = await task.approve.sendTransaction({from: accounts[1]});
+          var approved = await task.approved.call();
+          assert(approved, "the mitigator should approve mitigation contracts");
         });
       });
     });

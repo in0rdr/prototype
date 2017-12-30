@@ -11,7 +11,8 @@ contract Task {
     uint public price;
 
     string public proof; // proof of service delivery
-    bool public mitigatorApproval; // true if mitigator accepts contract conditions
+    bool public approved; // true if mitigator accepts contract conditions
+    bool public started; // true if price paid and task started
     uint public acknowledged; // acknowledgment of proof: 0 = unkown, 1 = ack, 2 = rej
 
     event TaskCreated(address _taskAddr);
@@ -35,22 +36,23 @@ contract Task {
     }*/
 
     function approve() external {
-        require(block.number < serviceDeadline && msg.sender == Customer(mitigator).owner() && !mitigatorApproval);
-        mitigatorApproval = true;
+        require(!started && block.number < serviceDeadline && msg.sender == Customer(mitigator).owner() && !approved);
+        approved = true;
     }
 
     function start() payable external {
-        require(mitigatorApproval && block.number < serviceDeadline && msg.value == price && msg.sender == attackTarget);
+        require(!started && approved && block.number < serviceDeadline && msg.value == price && msg.sender == Customer(attackTarget).owner());
+        started = true;
         TaskStarted(this);
     }
 
     function uploadProof(string _proof) external {
-        require(block.number < serviceDeadline && msg.sender == mitigator);
+        require(started && block.number < serviceDeadline && msg.sender == Customer(mitigator).owner());
         proof = _proof;
     }
 
     function validateProof(uint _resp) external { //TODO: onlyAfterMitigatorRating
-        require(block.number < validationDeadline && msg.sender == attackTarget);
+        require(started && block.number < validationDeadline && msg.sender == Customer(attackTarget).owner());
         require(acknowledged == 0 && _resp <= 2);
         acknowledged = _resp;
 
@@ -61,12 +63,12 @@ contract Task {
     }
 
     function abort() external {
-        require(msg.sender == attackTarget || msg.sender == mitigator);
+        require(started && msg.sender == Customer(attackTarget).owner() || msg.sender == Customer(mitigator).owner());
 
-        if (block.number > serviceDeadline && keccak256(proof) == "" && msg.sender == attackTarget) {
+        if (block.number > serviceDeadline && keccak256(proof) == "" && msg.sender == Customer(attackTarget).owner()) {
             // no proof during service time window
             msg.sender.transfer(price);
-        } else if (block.number > validationDeadline && acknowledged == 0 && keccak256(proof) != "" && msg.sender == mitigator) {
+        } else if (block.number > validationDeadline && acknowledged == 0 && keccak256(proof) != "" && msg.sender == Customer(mitigator).owner()) {
             // no validation and response during validation time window
             msg.sender.transfer(price);
         }
