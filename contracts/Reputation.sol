@@ -5,32 +5,61 @@ import './Customer.sol';
 
 contract Reputation {
 
-    mapping(address => string[2]) reputons; // interaction => reputon IPFS hash
-    mapping(address => address[2]) reputonOwners; // interaction => reputon owners (customer contract address)
+    // reputon hash => reputon owner (customer contract address)
+    mapping(string => address) reputons;
+    // necessary to detect duplicate claims
+    // and to register the owner of the claim
+
+    // interaction => reputon IPFS hash
+    mapping(address => string[2]) interactions;
+    // reputons[i][0] is claim of attack target about mitigator
+    // reputons[i][1] is claim of mitigator about attack target
 
     function Reputation() public {
     }
 
-    function rate(address _interactionAddr, address _custAddr, string reputon) external {
+    function attackTargetRated(address _interactionAddr) constant public returns (bool) {
+        return (reputons[interactions[_interactionAddr][0]] != 0);
+        //return keccak256(interactions[_interactionAddr][0]) != keccak256("");
+    }
+
+    function mitigatorRated(address _interactionAddr) constant public returns (bool) {
+        return (reputons[interactions[_interactionAddr][1]] != 0);
+        //return keccak256(interactions[_interactionAddr][1]) != keccak256("");
+    }
+
+    // todo: getReputonForInteraction(address _interactionAddr)
+
+    // todo: split in rateMitigator and rateAttackTarget
+    function rate(address _interactionAddr, address _claimOnwer, string reputon) external {
         Task interaction = Task(_interactionAddr);
-        Customer customer = Customer(_custAddr);
+        Customer interactionAttackTarget = Customer(interaction.attackTarget());
+        Customer interactionMitigator = Customer(interaction.mitigator());
+        Customer claimOwnerContract = Customer(_claimOnwer);
         
-        // the sender must be the owner of the customer contract
-        require(msg.sender == customer.owner());
+        // no duplicate reputons
+        require(reputons[reputon] == 0);
+        // the sender must be the owner of the claim owner contract
+        require(msg.sender == claimOwnerContract.owner());
         // the sender must be one of the contract parties
-        require(msg.sender == interaction.attackTarget() || msg.sender == interaction.mitigator());
-        // there should be not feedback yet
-        require(msg.sender != Customer(reputonOwners[_interactionAddr][0]).owner()
-            && msg.sender != Customer(reputonOwners[_interactionAddr][1]).owner());
+        require(msg.sender == interactionAttackTarget.owner() || msg.sender == interactionMitigator.owner());
+        // there should be no feedback yet
+        if (msg.sender == interactionAttackTarget.owner()) {
+            require(!attackTargetRated(_interactionAddr));
+        } else if (msg.sender == interactionMitigator.owner()) {
+            require(!mitigatorRated(_interactionAddr));
+        }
 
         // register reputon, if the attack target gives feedback during validation time window
         // or when mitigator gives feedback after validation time window
-        if ((block.number < interaction.validationDeadline() && _custAddr == interaction.attackTarget())
-         || (block.number > interaction.validationDeadline() && _custAddr == interaction.mitigator())) {
-            // register the reputon
-            reputons[_interactionAddr][reputons[_interactionAddr].length] = reputon;
-            // register the customer address of the reputon owner
-            reputonOwners[_interactionAddr][reputons[_interactionAddr].length] = _custAddr;
+        if (_claimOnwer == interaction.attackTarget()) {
+            require(block.number <= interaction.validationDeadline());
+            reputons[reputon] = _claimOnwer;
+            interactions[_interactionAddr][0] = reputon;
+        } else if (_claimOnwer == interaction.mitigator()) {
+            require(block.number > interaction.validationDeadline());
+            reputons[reputon] = _claimOnwer;
+            interactions[_interactionAddr][1] = reputon;
         }
     }
 
