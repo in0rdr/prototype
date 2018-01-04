@@ -7,11 +7,12 @@ BOOTNODE="prototype_bootnode"
 MONGO="prototype_mongo"
 IPFS="prototype_ipfs"
 API="prototype_api"
+SIM="prototype_simulator"
 
-if [ ! -e "docker-compose.yaml" ];then
-  echo "docker-compose.yaml not found."
-  exit 8
-fi
+# if [ ! -e "docker-compose.yaml" ];then
+#   echo "docker-compose.yaml not found."
+#   exit 8
+# fi
 
 function clean(){
 
@@ -32,11 +33,15 @@ function clean(){
   #  docker rm -f `docker ps -aq`
   # fi
 
+  echo "Copying contracts for simulation deployment"
+  sh ./copycontracts.sh
+
   echo "Building prototype images (if not latest already)"
   docker build -t prototype/mongo:latest mongo
   docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
+  docker build -t prototype/simulator:latest simulator
 }
 
 function up(){
@@ -55,9 +60,15 @@ function up(){
 
   docker run -d --name=$PEER1 prototype/geth:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
+
+  # deploy the simulator
+  sleep 3
+  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
 }
 
 function down(){
+  docker stop $SIM
   docker stop $PEER1
   docker stop $PEER2
   docker stop $BOOTNODE
