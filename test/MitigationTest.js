@@ -320,7 +320,307 @@ contract('Mitigation', function(accounts) {
     assert(diff < 1 && diff > 0.99, "the attack target should be refunded");
   });
 
-  /*it("should abort", async function() {
+  it("should abort before started", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
 
-  });*/
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+
+    var a = await m.aborted.call(0);
+    assert(!a, "task should not be aborted");
+
+    // store the original balance before abort
+    var attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+
+    await m.abort.sendTransaction(0);
+    a = await m.aborted.call(0);
+    assert(a, "task should be aborted");
+
+    // check balance after abort
+    var newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var diff = attackTargetBalance - newAttackTargetBalance;
+    assert(diff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+
+    // repeated abort, should throw
+    await expectThrow(m.abort.sendTransaction(0));
+
+    await expectThrow(m.approve.sendTransaction(0, {from: accounts[1]}));
+    var a = await m.approved.call(0);
+    assert(!a, "the aborted task should not be approved");
+
+    await expectThrow(m.start.sendTransaction(0, {from: accounts[0], value: web3.toWei(1, "ether")}));
+    var s = await m.started.call(0);
+    assert(!s, "the aborted task should not be started");
+  });
+
+  it("should abort after validation time window expired and refund target when no proof", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
+
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+
+    await m.approve.sendTransaction(0, {from: accounts[1]});
+    var a = await m.approved.call(0);
+    assert(a, "the mitigator should approve mitigation contracts");
+
+    await m.start.sendTransaction(0, {from: accounts[0], value: web3.toWei(1, "ether")});
+    var s = await m.started.call(0);
+    assert(s, "the mitigation task should have started");
+
+    var currentNum = web3.eth.blockNumber;
+    // SERVICE TIME WINDOW
+    assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
+
+    // store the original balance before abort
+    var attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    await expectThrow(m.abort.sendTransaction(0));
+    await expectThrow(m.abort.sendTransaction(0, {from: accounts[1]}));
+    a = await m.aborted.call(0);
+    assert(!a, "task should not be aborted during service time window");
+
+    // check balance after abort
+    var newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    var targetDiff = attackTargetBalance - newAttackTargetBalance;
+    var mitigatorDiff = mitigatorBalance - newMitigatorBalance;
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+
+    // fast forward mine 100 additional blocks
+    // VALIDATION TIME WINDOW
+    utils.mine(100);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > serviceDeadline, "service time window should have expired");
+    assert(currentNum < validationDeadline, "validation time window should not have expired yet");
+
+    // store the original balance before abort
+    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // use validate to resolve the protocol during validation time window
+    await expectThrow(m.abort.sendTransaction(0));
+    await expectThrow(m.abort.sendTransaction(0, {from: accounts[1]}));
+    a = await m.aborted.call(0);
+    assert(!a, "task should not be aborted during validation time window");
+
+    // check balance after abort
+    newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    targetDiff = attackTargetBalance - newAttackTargetBalance;
+    mitigatorDiff = mitigatorBalance - newMitigatorBalance;
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+
+    assert(currentNum < validationDeadline, "validation time window should not have expired yet");
+
+    // fast forward mine 100 additional blocks
+    // VALIDATION DEADLINE EXPIRED
+    utils.mine(100);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+
+    // store the original balance before abort
+    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // no proof uploaded, attack target should be refunded
+    await expectThrow(m.abort.sendTransaction(0, {from: accounts[1]}));
+    await m.abort.sendTransaction(0);
+
+    a = await m.aborted.call(0);
+    assert(a, "task should be aborted");
+
+    // check balance after abort
+    newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    targetDiff = newAttackTargetBalance - attackTargetBalance;
+    mitigatorDiff = mitigatorBalance - newMitigatorBalance;
+    assert(targetDiff < 1 && targetDiff > 0.99, "the attack target should be refunded");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+  });
+
+  it("should abort after validation time window expired and refund mitigator when proof uploaded", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
+
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+
+    await m.approve.sendTransaction(0, {from: accounts[1]});
+    var a = await m.approved.call(0);
+    assert(a, "the mitigator should approve mitigation contracts");
+
+    await m.start.sendTransaction(0, {from: accounts[0], value: web3.toWei(1, "ether")});
+    var s = await m.started.call(0);
+    assert(s, "the mitigation task should have started");
+
+    var currentNum = web3.eth.blockNumber;
+    // SERVICE TIME WINDOW
+    assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
+
+    // upload proof
+    await m.uploadProof.sendTransaction(0, "dummy-proof", {from: accounts[1]});
+    var p = await m.getProof.call(0);
+    assert.equal(p, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+    p = await m.proofUploaded.call(0);
+    assert(p, "proof should be uploaded");
+
+    // store the original balance before abort
+    var attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    await expectThrow(m.abort.sendTransaction(0));
+    await expectThrow(m.abort.sendTransaction(0, {from: accounts[1]}));
+    a = await m.aborted.call(0);
+    assert(!a, "task should not be aborted during service time window");
+
+    // check balance after abort
+    var newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    var targetDiff = attackTargetBalance - newAttackTargetBalance;
+    var mitigatorDiff = mitigatorBalance - newMitigatorBalance;
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+
+    // fast forward mine 100 additional blocks
+    // VALIDATION TIME WINDOW
+    utils.mine(100);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > serviceDeadline, "service time window should have expired");
+    assert(currentNum < validationDeadline, "validation time window should not have expired yet");
+
+    // store the original balance before abort
+    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // use validate to resolve the protocol during validation time window
+    await expectThrow(m.abort.sendTransaction(0));
+    await expectThrow(m.abort.sendTransaction(0, {from: accounts[1]}));
+    a = await m.aborted.call(0);
+    assert(!a, "task should not be aborted during validation time window");
+
+    // check balance after abort
+    newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    targetDiff = attackTargetBalance - newAttackTargetBalance;
+    mitigatorDiff = mitigatorBalance - newMitigatorBalance;
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no reward payout should be made");
+
+    assert(currentNum < validationDeadline, "validation time window should not have expired yet");
+
+    // fast forward mine 100 additional blocks
+    // VALIDATION DEADLINE EXPIRED
+    utils.mine(100);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+
+    // store the original balance before abort
+    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // proof was uploaded,
+    // mitigator should be rewarded because target did not validate in time
+    await expectThrow(m.abort.sendTransaction(0));
+    await m.abort.sendTransaction(0, {from: accounts[1]});
+
+    a = await m.aborted.call(0);
+    assert(a, "task should be aborted");
+
+    // check balance after abort
+    newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    targetDiff = attackTargetBalance - newAttackTargetBalance;
+    mitigatorDiff = newMitigatorBalance - mitigatorBalance;
+    assert(mitigatorDiff < 1 && mitigatorDiff > 0.99, "the mitigatorDiff should be rewarded");
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no refund");
+  });
+
+  it("when not started, should abort without payout when target aborts", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
+
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+
+    await m.approve.sendTransaction(0, {from: accounts[1]});
+    var a = await m.approved.call(0);
+    assert(a, "the mitigator should approve mitigation contracts");
+
+    // fast forward mine 200 additional blocks
+    // VALIDATION DEADLINE EXPIRED
+    utils.mine(200);
+    var currentNum = web3.eth.blockNumber;
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+
+    // store the original balance before abort
+    var attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+
+    await m.abort.sendTransaction(0);
+
+    var a = await m.aborted.call(0);
+    assert(a, "task should be aborted");
+
+    // check balance after abort
+    var newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var diff = attackTargetBalance - newAttackTargetBalance;
+    assert(diff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no payment");
+  });
+
+  it("when not started, should abort without payout when mitigator aborts", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
+
+    var startNum = web3.eth.blockNumber;
+    var serviceDeadline = startNum + 100;
+    var validationDeadline = startNum + 200;
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+
+    // fast forward mine 200 additional blocks
+    // VALIDATION DEADLINE EXPIRED
+    utils.mine(200);
+    var currentNum = web3.eth.blockNumber;
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+
+    // store the original balance before abort
+    var mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // abort as mitigator
+    await m.abort.sendTransaction(0, {from: accounts[1]});
+
+    var a = await m.aborted.call(0);
+    assert(a, "task should be aborted");
+
+    // check balance after abort
+    var newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    var diff = mitigatorBalance - newMitigatorBalance;
+    assert(diff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no payment");
+  });
 });

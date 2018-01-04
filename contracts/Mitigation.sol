@@ -15,7 +15,7 @@ contract Mitigation {
         string proof;
     }
 
-    enum State { init, approved, started, proofUploaded, acknowledged, rejected }
+    enum State { aborted, init, approved, started, proofUploaded, acknowledged, rejected }
 
     Task[] public tasks;
     //mapping(uint => address) creators;
@@ -53,6 +53,11 @@ contract Mitigation {
 
     function taskExists(uint _id) constant public returns(bool) {
         return (_id < tasks.length);
+    }
+
+    function aborted(uint _id) constant public returns(bool) {
+        if (!taskExists(_id)) return false;
+        return (uint(tasks[_id].state) == uint(State.aborted));
     }
 
     function initialized(uint _id) constant public returns(bool) {
@@ -156,25 +161,35 @@ contract Mitigation {
     }
 
     function abort(uint _id) external {
-        require(started(_id));
+        require(initialized(_id));
+        // payout already made if validated
+        // in this case, protocol already resolved
+        require(!validated(_id));
         require(msg.sender == getTarget(_id)
             || msg.sender == getMitigator(_id));
 
-        bytes memory proofAsBytes = bytes(tasks[_id].proof);
-        if (block.number > getServiceDeadline(_id)
-            // no proof during service time window
-            && proofAsBytes.length == 0
-            && msg.sender == getTarget(_id)) {
-            //balances[_id] = 0;
-            msg.sender.transfer(tasks[_id].price);
-        } else if (block.number > getValidationDeadline(_id)
-            // no validation and response during validation time window,
-            // but the mitigator uploaded a proof of service
-            && proofAsBytes.length != 0
-            && msg.sender == getMitigator(_id)) {
-            //balances[_id] = 0;
-            msg.sender.transfer(tasks[_id].price);
+        if (started(_id)) {
+            // during the validation time window,
+            // the attack target should not abort but validate
+            require(block.number > getValidationDeadline(_id));
+
+            bytes memory proofAsBytes = bytes(tasks[_id].proof);
+            if (msg.sender == getTarget(_id)) {
+                // no proof uploaded
+                require(proofAsBytes.length == 0);
+                //balances[_id] = 0;
+                msg.sender.transfer(tasks[_id].price);
+            } else if (msg.sender == getMitigator(_id)) {
+                // proof was uploaded
+                require(proofAsBytes.length != 0);
+                //balances[_id] = 0;
+                msg.sender.transfer(tasks[_id].price);
+            }
         }
+
+        // payout only made once started,
+        // but task can be aborted once initialized
+        tasks[_id].state = State.aborted;
     }
 
 }
