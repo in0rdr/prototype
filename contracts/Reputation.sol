@@ -1,65 +1,55 @@
 pragma solidity ^0.4.18;
 
-import './Task.sol';
-import './Customer.sol';
+import './Mitigation.sol';
+import './Identity.sol';
 
 contract Reputation {
 
-    // reputon hash => reputon owner (customer contract address)
+    // reputon hash => reputon owner
+    // detect duplicate claims
+    // and register claim owners
     mapping(string => address) reputons;
-    // necessary to detect duplicate claims
-    // and to register the owner of the claim
 
     // interaction => reputon IPFS hash
-    mapping(address => string[2]) interactions;
     // reputons[i][0] is claim of attack target about mitigator
     // reputons[i][1] is claim of mitigator about attack target
+    mapping(uint => string[2]) interactions;
 
     function Reputation() public {
     }
 
-    function attackTargetRated(address _interactionAddr) constant public returns (bool) {
-        return (reputons[interactions[_interactionAddr][0]] != 0);
-        //return keccak256(interactions[_interactionAddr][0]) != keccak256("");
+    function attackTargetRated(uint _id) constant public returns (bool) {
+        return (reputons[interactions[_id][0]] != 0);
     }
 
-    function mitigatorRated(address _interactionAddr) constant public returns (bool) {
-        return (reputons[interactions[_interactionAddr][1]] != 0);
-        //return keccak256(interactions[_interactionAddr][1]) != keccak256("");
+    function mitigatorRated(uint _id) constant public returns (bool) {
+        return (reputons[interactions[_id][1]] != 0);
     }
 
-    // todo: getReputonForInteraction(address _interactionAddr)
+    // todo: getReputonForInteraction(address _id)
 
     // todo: split in rateMitigator and rateAttackTarget
-    function rate(address _interactionAddr, address _claimOnwer, string reputon) external {
-        Task interaction = Task(_interactionAddr);
-        Customer interactionAttackTarget = Customer(interaction.attackTarget());
-        Customer interactionMitigator = Customer(interaction.mitigator());
-        Customer claimOwnerContract = Customer(_claimOnwer);
-        
+    function rate(address _mitigation, uint _interactionId, string _reputon) external {
+        address targetAddr = Mitigation(_mitigation).getTarget(_interactionId);
+        address mitigatorAddr = Mitigation(_mitigation).getMitigator(_interactionId);
+
         // no duplicate reputons
-        require(reputons[reputon] == 0);
-        // the sender must be the owner of the claim owner contract
-        require(msg.sender == claimOwnerContract.owner());
+        require(reputons[_reputon] == 0);
         // the sender must be one of the contract parties
-        require(msg.sender == interactionAttackTarget.owner() || msg.sender == interactionMitigator.owner());
-        // there should be no feedback yet
-        if (msg.sender == interactionAttackTarget.owner()) {
-            require(!attackTargetRated(_interactionAddr));
-        } else if (msg.sender == interactionMitigator.owner()) {
-            require(!mitigatorRated(_interactionAddr));
-        }
+        require(msg.sender == targetAddr || msg.sender == mitigatorAddr);
 
         // register reputon, if the attack target gives feedback during validation time window
         // or when mitigator gives feedback after validation time window
-        if (_claimOnwer == interaction.attackTarget()) {
-            require(block.number <= interaction.validationDeadline());
-            reputons[reputon] = _claimOnwer;
-            interactions[_interactionAddr][0] = reputon;
-        } else if (_claimOnwer == interaction.mitigator()) {
-            require(block.number > interaction.validationDeadline());
-            reputons[reputon] = _claimOnwer;
-            interactions[_interactionAddr][1] = reputon;
+        if (msg.sender == targetAddr) {
+            require(!attackTargetRated(_interactionId));
+            require(block.number <= Mitigation(_mitigation).getValidationDeadline(_interactionId));
+            reputons[_reputon] = msg.sender;
+            interactions[_interactionId][0] = _reputon;
+        } else if (msg.sender == mitigatorAddr) {
+            require(!mitigatorRated(_interactionId));
+            require(block.number > Mitigation(_mitigation).getValidationDeadline(_interactionId));
+            reputons[_reputon] = msg.sender;
+            interactions[_interactionId][1] = _reputon;
         }
     }
 

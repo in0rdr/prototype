@@ -1,11 +1,11 @@
 var Reputation = artifacts.require("Reputation");
-var Customer = artifacts.require("Customer");
-var Task = artifacts.require("Task");
+var Identity = artifacts.require("Identity");
+var Mitigation = artifacts.require("Mitigation");
 
 module.exports = function(deployer, network, accounts) {
-    deployer.deploy(Customer);
-    deployer.deploy(Task);
-    deployer.link(Customer, Reputation);
-    deployer.link(Task, Reputation);
+    deployer.deploy(Identity);
+    deployer.deploy(Mitigation);
+    deployer.link(Identity, Reputation);
+    deployer.link(Mitigation, Reputation);
     deployer.deploy(Reputation);
 };
