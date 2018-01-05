@@ -15,7 +15,6 @@ SIM="prototype_simulator"
 # fi
 
 function clean(){
-
   lines=`docker ps -a | grep 'prototype_' | wc -l`
 
   if [ "$lines" -gt 0 ]; then
@@ -24,17 +23,22 @@ function clean(){
 
   lines=`docker images | grep 'prototype' | wc -l`
   if [ "$lines" -gt 0 ]; then
-    docker images | grep 'thesis' | awk '{print $1}' | xargs docker rmi -f
+    docker images | grep 'prototype' | awk '{print $1}' | xargs docker rmi -f
   fi
+}
 
-  # lines=`docker ps -aq | wc -l`
-  # if [ "$lines" -gt 0 ]; then
-  #  docker stop -f `docker ps -aq`
-  #  docker rm -f `docker ps -aq`
-  # fi
+function clear_containers(){
+  lines=`docker ps -aq | wc -l`
+  if [ "$lines" -gt 0 ]; then
+   docker stop -f `docker ps -aq`
+   docker rm -f `docker ps -aq`
+  fi
+}
 
-  echo "Copying contracts for simulation deployment"
+function build(){
+  echo "Copying contracts and rails web app for deployment"
   sh ./copycontracts.sh
+  sh ./copyrails.sh
 
   echo "Building prototype images (if not latest already)"
   docker build -t prototype/mongo:latest mongo
@@ -77,6 +81,30 @@ function down(){
   docker stop $IPFS
 }
 
+function sim_restart(){
+  docker stop $API
+  docker stop $MONGO
+  docker stop $IPFS
+
+  docker stop $SIM
+
+  lines=`docker ps -a | grep $SIM | wc -l`
+  echo $lines
+  if [ "$lines" -eq 1 ]; then
+    docker ps -a | grep $SIM | awk '{print $1}' | xargs docker rm -f
+  fi
+
+  lines=`docker images | grep 'prototype/simulator' | wc -l`
+  echo $lines
+  if [ "$lines" -eq 1 ]; then
+    docker images | grep 'prototype/simulator' | awk '{print $1}' | xargs docker rmi -f
+  fi
+
+  docker build -t prototype/simulator:latest simulator
+  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+}
+
 for opt in "$@"
 do
 
@@ -87,17 +115,34 @@ do
         down)
             down
             ;;
+        build)
+            build
+            ;;
+        rebuild)
+            clean
+            build
+            ;;
         clean)
             clean
             ;;
+        clear_containers)
+            clear_containers
+            ;;
+        soft_restart)
+            down
+            up
+            ;;
+        sim_restart)
+            sim_restart
+            ;;
         restart)
             down
-            clean
+            rebuild
             up
             ;;
 
         *)
-            echo $"Usage: $0 {up|down|clean|restart}"
+            echo $"Usage: $0 {up|down|build|rebuild|clean|clear_containers|soft_restart|sim_restart|restart}"
             exit 1
 
 esac
