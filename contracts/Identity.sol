@@ -8,7 +8,7 @@ contract Identity {
 
     Customer[] private customers;
     mapping(address => uint) customerIds;
-    event CustomerCreated(uint _custId);
+    event CustomerCreated(uint _custId, address _custAddr);
 
     function Identity() public {
         customers.push(Customer(0));
@@ -19,7 +19,7 @@ contract Identity {
 
         customerIds[msg.sender] = customers.length;
         customers.push(Customer(msg.sender));
-        CustomerCreated(customers.length - 1);
+        CustomerCreated(customers.length - 1, msg.sender);
     }
 
     function isCustomer(address addr) public constant returns (bool) {

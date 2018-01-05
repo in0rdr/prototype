@@ -21,7 +21,7 @@ contract Mitigation {
     //mapping(uint => address) creators;
     //mapping(uint => uint) balances;
 
-    event TaskCreated(uint _taskId, address creator);
+    event TaskCreated(uint _taskId, address _creator);
     event TaskStarted(uint _taskId);
 
     function Mitigation() public {

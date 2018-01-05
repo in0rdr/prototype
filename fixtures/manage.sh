@@ -89,13 +89,11 @@ function sim_restart(){
   docker stop $SIM
 
   lines=`docker ps -a | grep $SIM | wc -l`
-  echo $lines
   if [ "$lines" -eq 1 ]; then
     docker ps -a | grep $SIM | awk '{print $1}' | xargs docker rm -f
   fi
 
   lines=`docker images | grep 'prototype/simulator' | wc -l`
-  echo $lines
   if [ "$lines" -eq 1 ]; then
     docker images | grep 'prototype/simulator' | awk '{print $1}' | xargs docker rmi -f
   fi
