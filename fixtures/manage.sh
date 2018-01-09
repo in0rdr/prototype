@@ -32,7 +32,7 @@ function clean(){
 function clear_containers(){
   lines=`docker ps -aq | wc -l`
   if [ "$lines" -gt 0 ]; then
-   docker stop -f `docker ps -aq`
+   docker stop `docker ps -aq`
    docker rm -f `docker ps -aq`
   fi
 }
