@@ -8,6 +8,8 @@ MONGO="prototype_mongo"
 IPFS="prototype_ipfs"
 API="prototype_api"
 SIM="prototype_simulator"
+NETSTATS="prototype_netstats"
+NETSTATS_INTEL="prototype_netstats-intel"
 
 # if [ ! -e "docker-compose.yaml" ];then
 #   echo "docker-compose.yaml not found."
@@ -41,11 +43,13 @@ function build(){
   sh ./copyrails.sh
 
   echo "Building prototype images (if not latest already)"
-  docker build -t prototype/mongo:latest mongo
-  docker build -t prototype/api:latest api
+  #docker build -t prototype/mongo:latest mongo
+  #docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
   docker build -t prototype/simulator:latest simulator
+  docker build -t prototype/eth-netstats:latest eth-netstats
+  docker build -t prototype/eth-net-intelligence-api:latest eth-net-intelligence-api
 }
 
 function up(){
@@ -69,24 +73,47 @@ function up(){
   sleep 3
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
   docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+
+  # deploy netstats
+  docker run -d --name=$NETSTATS prototype/eth-netstats:latest
+  netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
+  peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
+  docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
 }
 
 function down(){
-  docker stop $SIM
-  docker stop $PEER1
-  docker stop $PEER2
-  docker stop $BOOTNODE
-  docker stop $API
-  docker stop $MONGO
-  docker stop $IPFS
+  docker stop $NETSTATS $NETSTATS_INTEL \
+  $SIM $PEER1 $PEER2 $BOOTNODE \
+  $API $MONGO $IPFS
+}
+
+function sim_start(){
+  docker run -d --name=$BOOTNODE prototype/bootnode:latest
+
+  # get bootnode enode
+  bootnode=`./getnodeurl.sh $BOOTNODE log`
+  while [[ $bootnode != enode* ]]; do
+    sleep 1
+    bootnode=`./getnodeurl.sh $BOOTNODE log`
+  done
+
+  docker run -d --name=$PEER1 prototype/geth:latest 1 $bootnode
+  docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
+
+  # deploy the simulator
+  sleep 3
+  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+
+  # deploy netstats
+  docker run -d --name=$NETSTATS prototype/eth-netstats:latest
+  netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
+  peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
+  docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
 }
 
 function sim_restart(){
-  docker stop $API
-  docker stop $MONGO
-  docker stop $IPFS
-
-  docker stop $SIM
+  docker stop $API $MONGO $IPFS $SIM
 
   lines=`docker ps -a | grep $SIM | wc -l`
   if [ "$lines" -eq 1 ]; then
@@ -130,17 +157,21 @@ do
             down
             up
             ;;
+        sim_start)
+            sim_start
+            ;;
         sim_restart)
             sim_restart
             ;;
         restart)
             down
-            rebuild
+            clean
+            build
             up
             ;;
 
         *)
-            echo $"Usage: $0 {up|down|build|rebuild|clean|clear_containers|soft_restart|sim_restart|restart}"
+            echo $"Usage: $0 {up|down|build|rebuild|clean|clear_containers|soft_restart|sim_start|sim_restart|restart}"
             exit 1
 
 esac
