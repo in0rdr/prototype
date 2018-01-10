@@ -66,7 +66,7 @@ function up(){
     bootnode=`./getnodeurl.sh $BOOTNODE log`
   done
 
-  docker run -d --name=$PEER1 prototype/geth:latest 1 $bootnode
+  docker run -d -p 8545:8545 --name=$PEER1 prototype/geth:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
 
   # deploy the simulator
@@ -97,7 +97,7 @@ function sim_start(){
     bootnode=`./getnodeurl.sh $BOOTNODE log`
   done
 
-  docker run -d --name=$PEER1 prototype/geth:latest 1 $bootnode
+  docker run -d -p 8545:8545 --name=$PEER1 prototype/geth:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
 
   # deploy the simulator
