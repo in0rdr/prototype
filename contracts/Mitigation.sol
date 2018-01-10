@@ -10,9 +10,11 @@ contract Mitigation {
         address mitigator;
         uint serviceDeadline;
         uint validationDeadline;
+        uint startTime;
         uint price;
         State state;
         string proof;
+        string scope;
     }
 
     enum State { aborted, init, approved, started, proofUploaded, acknowledged, rejected }
@@ -43,12 +45,20 @@ contract Mitigation {
         return tasks[_id].validationDeadline;
     }
 
+    function getStartTime(uint _id) constant public returns(uint) {
+        return tasks[_id].startTime;
+    }
+
     function getPrice(uint _id) constant public returns(uint) {
         return tasks[_id].price;
     }
 
     function getProof(uint _id) constant public returns(string) {
         return tasks[_id].proof;
+    }
+
+    function getScope(uint _id) constant public returns(string) {
+        return tasks[_id].scope;
     }
 
     function taskExists(uint _id) constant public returns(bool) {
@@ -95,7 +105,7 @@ contract Mitigation {
         return (tasks[_id].state == State.rejected);
     }
 
-    function newTask(address _identity, address _attackTarget, address _mitigator, uint _serviceDeadline, uint _validationDeadline, uint _price) external {
+    function newTask(address _identity, address _attackTarget, address _mitigator, uint _serviceDeadline, uint _validationDeadline, uint _price, string _scope) external {
         require(_validationDeadline > _serviceDeadline);
         require(Identity(_identity).isCustomer(_attackTarget));
         require(Identity(_identity).isCustomer(_mitigator));
@@ -105,42 +115,46 @@ contract Mitigation {
             _mitigator,
             _serviceDeadline,
             _validationDeadline,
+            0,
             _price,
             State.init,
-            ""));
+            "",
+            _scope));
 
         TaskCreated(tasks.length - 1, msg.sender);
     }
 
     function approve(uint _id) external {
         require(tasks[_id].state == State.init);
-        require(block.number <= getServiceDeadline(_id));
         require(msg.sender == getMitigator(_id));
         tasks[_id].state = State.approved;
     }
 
     function start(uint _id) payable external {
         require(tasks[_id].state == State.approved);
-        require(block.number <= getServiceDeadline(_id));
         require(msg.value == tasks[_id].price);
         require(msg.sender == getTarget(_id));
 
         //balances[_id] = msg.value;
+        tasks[_id].startTime = block.number;
         tasks[_id].state = State.started;
         TaskStarted(_id);
     }
 
     function uploadProof(uint _id, string _proof) external {
         require(tasks[_id].state == State.started);
-        require(block.number <= getServiceDeadline(_id));
+        require(block.number <= tasks[_id].startTime + getServiceDeadline(_id));
         require(msg.sender == getMitigator(_id));
+        // require a non-empty proof
+        bytes memory proofAsBytes = bytes(_proof);
+        require(proofAsBytes.length != 0);
+
         tasks[_id].proof = _proof;
         tasks[_id].state = State.proofUploaded;
     }
 
     function validateProof(uint _id, bool _ack, address _repAddr) external {
-        require(started(_id)); // proofUploaded no requirement, but possible
-        require(block.number <= getValidationDeadline(_id));
+        require(block.number <= tasks[_id].startTime + getValidationDeadline(_id));
         require(msg.sender == getTarget(_id));
 
         // incentive to rate, only validate the proof
@@ -171,17 +185,14 @@ contract Mitigation {
         if (started(_id)) {
             // during the validation time window,
             // the attack target should not abort but validate
-            require(block.number > getValidationDeadline(_id));
+            require(block.number > tasks[_id].startTime + getValidationDeadline(_id));
 
-            bytes memory proofAsBytes = bytes(tasks[_id].proof);
             if (msg.sender == getTarget(_id)) {
-                // no proof uploaded
-                require(proofAsBytes.length == 0);
+                require(!proofUploaded(_id));
                 //balances[_id] = 0;
                 msg.sender.transfer(tasks[_id].price);
             } else if (msg.sender == getMitigator(_id)) {
-                // proof was uploaded
-                require(proofAsBytes.length != 0);
+                require(proofUploaded(_id));
                 //balances[_id] = 0;
                 msg.sender.transfer(tasks[_id].price);
             }

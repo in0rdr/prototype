@@ -11,12 +11,8 @@ contract('Reputation', function(accounts) {
     await id.newCustomer.sendTransaction();
     await id.newCustomer.sendTransaction({from: accounts[1]});
 
-    var startNum = web3.eth.blockNumber;
-    var serviceDeadline = startNum + 100;
-    var validationDeadline = startNum + 200;
-
     var m = await Mitigation.new();
-    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], 100, 200, web3.toWei(1, "ether"), "ipfs-attackers-file-hash");
 
     await m.approve.sendTransaction(0, {from: accounts[1]});
     var a = await m.approved.call(0);
@@ -26,6 +22,9 @@ contract('Reputation', function(accounts) {
     var s = await m.started.call(0);
     assert(s, "the mitigation task should have started");
 
+    var startTime = await m.getStartTime.call(0);
+    var serviceDeadline = startTime.plus(100);
+    var validationDeadline = startTime.plus(200);
     var currentNum = web3.eth.blockNumber;
     assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
 
@@ -35,8 +34,8 @@ contract('Reputation', function(accounts) {
     p = await m.proofUploaded.call(0);
     assert(p, "proof should be uploaded");
 
-    // fast forward mine 200 additional blocks
-    utils.mine(200);
+    // fast forward mine 220 additional blocks
+    utils.mine(220);
     currentNum = web3.eth.blockNumber;
     assert(currentNum > validationDeadline, "validation time window should have expired");
 
@@ -78,12 +77,8 @@ contract('Reputation', function(accounts) {
     await id.newCustomer.sendTransaction();
     await id.newCustomer.sendTransaction({from: accounts[1]});
 
-    var startNum = web3.eth.blockNumber;
-    var serviceDeadline = startNum + 100;
-    var validationDeadline = startNum + 200;
-
     var m = await Mitigation.new();
-    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], 100, 200, web3.toWei(1, "ether"), "ipfs-attackers-file-hash");
 
     await m.approve.sendTransaction(0, {from: accounts[1]});
     var a = await m.approved.call(0);
@@ -93,11 +88,18 @@ contract('Reputation', function(accounts) {
     var s = await m.started.call(0);
     assert(s, "the mitigation task should have started");
 
+    var startTime = await m.getStartTime.call(0);
+    var serviceDeadline = startTime.plus(100);
+    var validationDeadline = startTime.plus(200);
     var currentNum = web3.eth.blockNumber;
     assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
 
-    // fast forward mine 200 additional blocks
-    utils.mine(200);
+    await m.uploadProof.sendTransaction(0, "dummy-proof", {from: accounts[1]});
+    var p = await m.getProof.call(0);
+    assert.equal(p, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+
+    // fast forward mine 220 additional blocks
+    utils.mine(220);
     currentNum = web3.eth.blockNumber;
     assert(currentNum > validationDeadline, "validation time window should have expired");
 
@@ -114,12 +116,8 @@ contract('Reputation', function(accounts) {
     await id.newCustomer.sendTransaction();
     await id.newCustomer.sendTransaction({from: accounts[1]});
 
-    var startNum = web3.eth.blockNumber;
-    var serviceDeadline = startNum + 100;
-    var validationDeadline = startNum + 200;
-
     var m = await Mitigation.new();
-    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], serviceDeadline, validationDeadline, web3.toWei(1, "ether"));
+    var tx = await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], 100, 200, web3.toWei(1, "ether"), "ipfs-attackers-file-hash");
 
     await m.approve.sendTransaction(0, {from: accounts[1]});
     var a = await m.approved.call(0);
@@ -129,11 +127,18 @@ contract('Reputation', function(accounts) {
     var s = await m.started.call(0);
     assert(s, "the mitigation task should have started");
 
+    var startTime = await m.getStartTime.call(0);
+    var serviceDeadline = startTime.plus(100);
+    var validationDeadline = startTime.plus(200);
     var currentNum = web3.eth.blockNumber;
     assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
 
-    // fast forward mine 100 additional blocks
-    utils.mine(100);
+    await m.uploadProof.sendTransaction(0, "dummy-proof", {from: accounts[1]});
+    var p = await m.getProof.call(0);
+    assert.equal(p, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+
+    // fast forward mine 120 additional blocks
+    utils.mine(120);
     currentNum = web3.eth.blockNumber;
     assert(currentNum > serviceDeadline, "service time window should have expired");
     assert(currentNum < validationDeadline, "validation time window should not have expired yet");
@@ -151,8 +156,8 @@ contract('Reputation', function(accounts) {
     r = await rep.getReputon.call(0, 0);
     assert.equal(r, "dummy-reputon", "reputon should be uploaded");
 
-    // fast forward mine 200 additional blocks
-    utils.mine(200);
+    // fast forward mine 120 additional blocks
+    utils.mine(120);
     currentNum = web3.eth.blockNumber;
     assert(currentNum > validationDeadline, "validation time window should have expired");
 

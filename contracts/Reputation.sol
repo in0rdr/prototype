@@ -31,28 +31,30 @@ contract Reputation {
         return interactions[_id][_peer];
     }
 
-    // todo: split in rateMitigator and rateAttackTarget
-    function rate(address _mitigation, uint _interactionId, string _reputon) external {
-        address targetAddr = Mitigation(_mitigation).getTarget(_interactionId);
-        address mitigatorAddr = Mitigation(_mitigation).getMitigator(_interactionId);
+    function rate(address _mitigation, uint _id, string _reputon) external {
+        address targetAddr = Mitigation(_mitigation).getTarget(_id);
+        address mitigatorAddr = Mitigation(_mitigation).getMitigator(_id);
 
         // no duplicate reputons
         require(reputons[_reputon] == 0);
+        // a rating needs to reference a completed task,
+        // an aborted task (or without proof) is no valid reference
+        require(Mitigation(_mitigation).proofUploaded(_id));
         // the sender must be one of the contract parties
         require(msg.sender == targetAddr || msg.sender == mitigatorAddr);
 
         // register reputon, if the attack target gives feedback during validation time window
         // or when mitigator gives feedback after validation time window
         if (msg.sender == targetAddr) {
-            require(!attackTargetRated(_interactionId));
-            require(block.number <= Mitigation(_mitigation).getValidationDeadline(_interactionId));
+            require(!attackTargetRated(_id));
+            require(block.number <= Mitigation(_mitigation).getStartTime(_id) + Mitigation(_mitigation).getValidationDeadline(_id));
             reputons[_reputon] = msg.sender;
-            interactions[_interactionId][0] = _reputon;
+            interactions[_id][0] = _reputon;
         } else if (msg.sender == mitigatorAddr) {
-            require(!mitigatorRated(_interactionId));
-            require(block.number > Mitigation(_mitigation).getValidationDeadline(_interactionId));
+            require(!mitigatorRated(_id));
+            require(block.number > Mitigation(_mitigation).getStartTime(_id) + Mitigation(_mitigation).getValidationDeadline(_id));
             reputons[_reputon] = msg.sender;
-            interactions[_interactionId][1] = _reputon;
+            interactions[_id][1] = _reputon;
         }
     }
 
