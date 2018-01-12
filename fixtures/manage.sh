@@ -43,8 +43,8 @@ function build(){
   sh ./copyrails.sh
 
   echo "Building prototype images (if not latest already)"
-  #docker build -t prototype/mongo:latest mongo
-  #docker build -t prototype/api:latest api
+  docker build -t prototype/mongo:latest mongo
+  docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
   docker build -t prototype/simulator:latest simulator
@@ -72,7 +72,8 @@ function up(){
   # deploy the simulator
   sleep 3
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
+  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 
   # deploy netstats
   docker run -d --name=$NETSTATS prototype/eth-netstats:latest
@@ -103,7 +104,8 @@ function sim_start(){
   # deploy the simulator
   sleep 3
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
+  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 
   # deploy netstats
   docker run -d --name=$NETSTATS prototype/eth-netstats:latest
@@ -113,7 +115,7 @@ function sim_start(){
 }
 
 function sim_restart(){
-  docker stop $API $MONGO $IPFS $SIM
+  docker stop $API $MONGO $SIM
 
   lines=`docker ps -a | grep $SIM | wc -l`
   if [ "$lines" -eq 1 ]; then
@@ -127,7 +129,8 @@ function sim_restart(){
 
   docker build -t prototype/simulator:latest simulator
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  docker run -d -e geth_peer=$peer1_ip --name=$SIM prototype/simulator:latest
+  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
+  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 }
 
 for opt in "$@"

@@ -2,10 +2,13 @@ const CONTRACT_BUILD_PATH = './build/';
 const GAS_EST = 3000000;
 
 var args = process.argv.slice(2);
-console.log("Connecting to peer", "http://" + args[0] + ":8545");
+var ipfsAPI = require('ipfs-api');
+var ipfs = ipfsAPI({host: args[1], port: '5001', protocol: 'http'})
 
 var fs = require('fs');
+var spawn = require("child_process").spawn;
 var Web3 = require('web3');
+console.log("Connecting to peer", "http://" + args[0] + ":8545");
 var web3 = new Web3(new Web3.providers.HttpProvider("http://" + args[0] + ":8545"));
 web3.eth.getTransactionReceiptMined = require("./getTransactionReceiptMined.js");
 
@@ -64,7 +67,19 @@ new Promise(async (res) => {
     mitigators['honest'] = customers.slice(2, 3);
     console.log("Using honest targets:", targets.honest);
     console.log("Using honest mitigators:", mitigators.honest);
-}).then(async () => {
+}).then(() => {
+    // prepare the attacker file (task scope)
+    var process = spawn('python',["createIPs.py", 1, 5]);
+
+    return new Promise((res, rej) => {
+        process.stdout.on('data', function (data){
+            ipfs.files.add(new Buffer(data), (err, result) => {
+                if (err) rej(err);
+                res(result[0].hash);
+            });
+        });
+    });
+}).then(async (ipfsHash) => {
     // create a new mitigation task
     var tx = ctr.mitgn.newTask.sendTransaction(
         ctr.id.address,
@@ -73,7 +88,7 @@ new Promise(async (res) => {
         3,
         6,
         web3.toWei(1, "ether"),
-        "{\"223.41.172.148\": [\"229.79.231.228\", \"4.223.252.132\", \"141.212.103.220\"], \"118.176.117.135\": [\"32.17.197.237\", \"234.231.227.224\", \"142.134.164.149\"]}",
+        ipfsHash,
         {from: targets.honest[0].addr, gas: GAS_EST});
 
     return web3.eth.getTransactionReceiptMined(tx);
@@ -85,7 +100,8 @@ new Promise(async (res) => {
     }
     var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
     var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
-    console.log(serviceDeadline, validationDeadline);
+    console.log("Service deadline:", serviceDeadline.toNumber());
+    console.log("Validation deadline:", validationDeadline.toNumber());
 
     var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx);
@@ -101,15 +117,45 @@ new Promise(async (res) => {
         console.log("Balances after start:", balances(customers.slice(1).map(c => c.addr)));
     }
     var sTime = ctr.mitgn.getStartTime(tasks[0].id);
+    return sTime;
+}).then(async (sTime) => {
+    var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
 
-    tx = ctr.mitgn.uploadProof.sendTransaction(tasks[0].id, "dummy-proof", {from: mitigators.honest[0].addr, gas: GAS_EST});
+    var proofHash = await new Promise((res, rej) => {
+        ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
+            if (err) rej(err);
+            res(result[0].hash);
+        });
+    });
+    console.log("Crated IPFS proof:", proofHash);
+
+    // mitigator uploads proof
+    tx = ctr.mitgn.uploadProof.sendTransaction(tasks[0].id, proofHash, {from: mitigators.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx);
     if (ctr.mitgn.proofUploaded(tasks[0].id)) {
         console.log("Uploaded proof for task", tasks[0].id);
     }
 
     // attack target rates
-    tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, "dummy-reputon", {from: targets.honest[0].addr, gas: GAS_EST});
+    var reputonHash = await new Promise((res, rej) => {
+        ipfs.files.add(new Buffer(`{
+            "application": "mitigation",
+            "reputons": [
+             {
+               "rater": "${ctr.mitgn.getTarget(0)}",
+               "assertion": "proof-ok",
+               "rated": "0",
+               "rating": 1,
+               "sample-size": 1
+             }
+            ]
+        }`), (err, result) => {
+            if (err) rej(err);
+            res(result[0].hash);
+        });
+    });
+    console.log("Crated IPFS reputon hash:", reputonHash);
+    tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, reputonHash, {from: targets.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx);
     if (ctr.rep.attackTargetRated(tasks[0].id)) {
         console.log("Target rated for task", tasks[0].id);
@@ -134,7 +180,25 @@ new Promise(async (res) => {
     console.log("Validation deadline expired");
 
     // mitigator rates
-    var tx2 = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, "dummy-reputon-1", {from: mitigators.honest[0].addr, gas: GAS_EST});
+    reputonHash = await new Promise((res, rej) => {
+        ipfs.files.add(new Buffer(`{
+            "application": "mitigation",
+            "reputons": [
+             {
+               "rater": "${ctr.mitgn.getMitigator(0)}",
+               "assertion": "target-ok",
+               "rated": "0",
+               "rating": 1,
+               "sample-size": 1
+             }
+            ]
+        }`), (err, result) => {
+            if (err) rej(err);
+            res(result[0].hash);
+        });
+    });
+    console.log("Crated IPFS reputon hash:", reputonHash);
+    var tx2 = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, reputonHash, {from: mitigators.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx2);
     if (ctr.rep.mitigatorRated(tasks[0].id)) {
         console.log("Mitigator rated task", tasks[0].id);
