@@ -1,6 +1,6 @@
 FROM ruby:rc-alpine
 
-RUN apk add --no-cache --virtual .ruby-builddeps build-base ruby-dev nodejs tzdata git
+RUN apk add --update --no-cache --virtual .ruby-builddeps build-base ruby-dev nodejs tzdata git perl
 #RUN apk del .ruby-builddeps
 
 RUN mkdir /api
