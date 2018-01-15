@@ -21,24 +21,16 @@ var idAbi = JSON.parse(contracts.identity.interface);
 var mitigationAbi = JSON.parse(contracts.mitigation.interface);
 var repAbi = JSON.parse(contracts.reputation.interface);
 
-var targets = {
-    honest: null,
-    undecided: null,
-    lazy: null,
-    malicious: null,
-    untrue: null,
-    disturbing: null
-};
-var mitigators = {
-    honest: null,
-    undecided: null,
-    lazy: null,
-    malicious: null,
-    disturbing: null
-};
-var customers = [{"id": 0, "addr": 0}];
+var Customer = require('./Customer.js');
+var Task = require('./Task.js');
+var Mitigator, Target;
+var customers = [new Customer({})];
 
 var tasks = [];
+
+// while true
+// if active_tasks (not aborted, not validated) < 10: create new
+// choose random task and advance
 
 new Promise(async (res) => {
     // deploy contracts
@@ -51,9 +43,13 @@ new Promise(async (res) => {
 }).then((ctr) => {
     // watch events
     //custFilter = watchCustomers(ctr.id);
-    //taskFilter = watchTaskCreation(ctr.mitgn);
+    taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
     //custFilter.stopWatching();
+
+    // setup simulation peers
+    Mitigator = require('./Mitigator.js')(web3, ctr, GAS_EST);
+    Target = require('./Target.js')(web3, ctr, GAS_EST);
 }).then(async () => {
     // create customer accounts
     return createCustomers(ctr.id, 2);
@@ -63,10 +59,9 @@ new Promise(async (res) => {
     console.log("Created customers:", newCustomers);
 
     // decide honest and malicous peers
-    targets['honest'] = customers.slice(1, 2);
-    mitigators['honest'] = customers.slice(2, 3);
-    console.log("Using honest targets:", targets.honest);
-    console.log("Using honest mitigators:", mitigators.honest);
+    customers[1] = new Target.UndecidedTarget(customers[1]);
+    customers[2] = new Mitigator.UndecidedMitigator(customers[2]);
+    console.log("Customer types:", customers.map(c => typeof c));
 }).then(() => {
     // prepare the attacker file (task scope)
     var process = spawn('python',["createIPs.py", 1, 5]);
@@ -83,27 +78,17 @@ new Promise(async (res) => {
     // create a new mitigation task
     var tx = ctr.mitgn.newTask.sendTransaction(
         ctr.id.address,
-        targets.honest[0].addr,
-        mitigators.honest[0].addr,
+        customers[1].addr,
+        customers[2].addr,
         3,
         6,
         web3.toWei(1, "ether"),
         ipfsHash,
-        {from: targets.honest[0].addr, gas: GAS_EST});
+        {from: customers[1].addr, gas: GAS_EST});
+}).then(async () => {
 
-    return web3.eth.getTransactionReceiptMined(tx);
-}).then(async (receipt) => {
-    // add new task to the pool of all tasks
-    if (ctr.mitgn.taskExists(0)) {
-        tasks.push({"id": 0, "task": ctr.mitgn.tasks(0)});
-        console.log("Created tasks:", tasks);
-    }
-    var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
-    var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
-    console.log("Service deadline:", serviceDeadline.toNumber());
-    console.log("Validation deadline:", validationDeadline.toNumber());
 
-    var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
+    /*var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx);
     if (ctr.mitgn.approved(tasks[0].id)) {
         console.log("Approved task", tasks[0].id);
@@ -117,8 +102,8 @@ new Promise(async (res) => {
         console.log("Balances after start:", balances(customers.slice(1).map(c => c.addr)));
     }
     var sTime = ctr.mitgn.getStartTime(tasks[0].id);
-    return sTime;
-}).then(async (sTime) => {
+    return sTime;*/
+});/*.then(async (sTime) => {
     var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
 
     var proofHash = await new Promise((res, rej) => {
@@ -203,7 +188,7 @@ new Promise(async (res) => {
     if (ctr.rep.mitigatorRated(tasks[0].id)) {
         console.log("Mitigator rated task", tasks[0].id);
     }
-});
+});*/
 
 
 //const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -233,17 +218,46 @@ async function createCustomers(_ctr, _n) {
         await web3.eth.getTransactionReceiptMined(tx);
         var id = _ctr.getCustomerId(acc);
 
-        result.push({"id": id, "addr": acc});
+        result.push(new Customer({"id": id, "addr": acc}));
     }
     return result;
 }
 
 function watchEvents(_contract, _event) {
-    return _contract[_event]({}, { address: _contract.address }).watch((error, result) => {
+    return _contract[_event]({}, { address: _contract.address }).watch(async (error, result) => {
         if (!error) {
-            console.log(_event,":", result.args);
+            if (_event == "TaskCreated") {
+                await web3.eth.getTransactionReceiptMined(result.transactionHash);
+                console.log(_event,":", result.args);
+
+                // add new task to the pool of all tasks
+                var task;
+
+                if (ctr.mitgn.taskExists(result.args._taskId)) {
+                    var ledgerTask = ctr.mitgn.tasks(result.args._taskId);
+                    task = new Task(result.args._taskId,
+                        customerWithAddr(result.args._target),
+                        customerWithAddr(result.args._mitigator));
+                    tasks.push(task);
+                    console.log("Created tasks:", tasks);
+
+                    var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
+                    var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
+                    console.log("Service deadline:", serviceDeadline.toNumber());
+                    console.log("Validation deadline:", validationDeadline.toNumber());
+
+                    await task.advance();
+                    if (ctr.mitgn.aborted(task.id)) {
+                        console.log("UndecidedMitigator advanced task", task.id);
+                    }
+                }
+            }
         }
     });
+}
+
+function customerWithAddr(_addr) {
+    return customers.find(c => c.addr == _addr );
 }
 
 function deployContract(_from, _ctr, _bytecode) {

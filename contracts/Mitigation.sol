@@ -23,7 +23,7 @@ contract Mitigation {
     //mapping(uint => address) creators;
     //mapping(uint => uint) balances;
 
-    event TaskCreated(uint _taskId, address _creator);
+    event TaskCreated(uint _taskId, address _target, address _mitigator);
     event TaskStarted(uint _taskId);
 
     function Mitigation() public {
@@ -121,7 +121,7 @@ contract Mitigation {
             "",
             _scope));
 
-        TaskCreated(tasks.length - 1, msg.sender);
+        TaskCreated(tasks.length - 1, _attackTarget, _mitigator);
     }
 
     function approve(uint _id) external {

@@ -9,6 +9,10 @@ WORKDIR /simulator
 COPY contracts contracts
 COPY compiler.js .
 COPY server.js .
+COPY Customer.js .
+COPY Mitigator.js .
+COPY Target.js .
+COPY Task.js .
 COPY getTransactionReceiptMined.js .
 COPY createIPs.py .
 COPY package.json .
