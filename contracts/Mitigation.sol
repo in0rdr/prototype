@@ -25,6 +25,7 @@ contract Mitigation {
 
     event TaskCreated(uint _taskId, address _target, address _mitigator);
     event TaskStarted(uint _taskId);
+    event TaskAborted(uint _taskId);
 
     function Mitigation() public {
     }
@@ -201,6 +202,7 @@ contract Mitigation {
         // payout only made once started,
         // but task can be aborted once initialized
         tasks[_id].state = State.aborted;
+        TaskAborted(_id);
     }
 
 }

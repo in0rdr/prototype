@@ -24,13 +24,10 @@ var repAbi = JSON.parse(contracts.reputation.interface);
 var Customer = require('./Customer.js');
 var Task = require('./Task.js');
 var Mitigator, Target;
-var customers = [new Customer({})];
+var customers = [];
 
 var tasks = [];
-
-// while true
-// if active_tasks (not aborted, not validated) < 10: create new
-// choose random task and advance
+var inactive_tasks = [];
 
 new Promise(async (res) => {
     // deploy contracts
@@ -40,55 +37,96 @@ new Promise(async (res) => {
     console.log(" Mitigation:\t", ctr.mitgn.address);
     console.log(" Reputation:\t", ctr.rep.address);
     res(ctr);
-}).then((ctr) => {
+}).then(() => {
     // watch events
+    console.log("Setting up event filters:");
     //custFilter = watchCustomers(ctr.id);
     taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
+    console.log(" >> Set up TaskCreated filter");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
+    console.log(" >> Set up TaskStarted filter");
+    abortFilter = watchEvents(ctr.mitgn, "TaskAborted");
+    console.log(" >> Set up TaskAborted filter");
     //custFilter.stopWatching();
 
     // setup simulation peers
-    Mitigator = require('./Mitigator.js')(web3, ctr, GAS_EST);
+    Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
     Target = require('./Target.js')(web3, ctr, GAS_EST);
 }).then(async () => {
     // create customer accounts
-    return createCustomers(ctr.id, 2);
+    console.log("Creating customer accounts...");
+    return createCustomers(ctr.id, 5);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
     console.log("Created customers:", newCustomers);
 
-    // decide honest and malicous peers
-    customers[1] = new Target.UndecidedTarget(customers[1]);
+    // select peer profiles/strategies
+    console.log("Selecting customer strategies...");
+    customers[0] = new Target.UndecidedTarget(customers[0]);
+    customers[1] = new Target.SelfishTarget(customers[1]);
     customers[2] = new Mitigator.UndecidedMitigator(customers[2]);
-    console.log("Customer types:", customers.map(c => typeof c));
+    customers[3] = new Mitigator.LazyMitigator(customers[3]);
+    customers[4] = new Mitigator.SelfishMitigator(customers[4]);
+    console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
-    // prepare the attacker file (task scope)
-    var process = spawn('python',["createIPs.py", 1, 5]);
+    // create new tasks if needed
+    var createIps;
 
-    return new Promise((res, rej) => {
-        process.stdout.on('data', function (data){
-            ipfs.files.add(new Buffer(data), (err, result) => {
-                if (err) rej(err);
-                res(result[0].hash);
-            });
+    // prepare an attacker file
+    // (task scope / IPs to block)
+    createIps = spawn('python', ['createIPs.py', 1, 5]);
+    createIps.stdout.on('data', function (data){
+        ipfs.files.add(new Buffer(data), (err, result) => {
+            if (!err) {
+                /*
+                // select random customers profile
+                var target = mitigator = new Customer({});
+
+                while (!(Object.getPrototypeOf(target) instanceof Target.Target
+                    && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
+                    target = customers[Math.floor(Math.random()*customers.length)];
+                    mitigator = customers[Math.floor(Math.random()*customers.length)];
+                    console.log("Sampled new customers")
+                }*/
+
+                // deterministic customer selection for testing
+                var target = customers[1]
+                var mitigator = customers[2]
+
+                console.log("Creating a new task with");
+                console.log(" >> Target:", target);
+                console.log(" >> Mitigator:", mitigator);
+
+                // create a new task with the chosen customer strategy
+                var tx = ctr.mitgn.newTask.sendTransaction(
+                    ctr.id.address,
+                    target.addr,
+                    mitigator.addr,
+                    3,
+                    6,
+                    web3.toWei(1, "ether"),
+                    result[0].hash,
+                    {from: target.addr, gas: GAS_EST});
+                console.log("Created task with tx hash:", tx);
+            }
         });
     });
-}).then(async (ipfsHash) => {
-    // create a new mitigation task
-    var tx = ctr.mitgn.newTask.sendTransaction(
-        ctr.id.address,
-        customers[1].addr,
-        customers[2].addr,
-        3,
-        6,
-        web3.toWei(1, "ether"),
-        ipfsHash,
-        {from: customers[1].addr, gas: GAS_EST});
-}).then(async () => {
+    /*for (;;) {
+        if (tasks.length > 10) {
+            console.log("Still 10 tasks in pipelne, checking again in 30s..");
+            setTimeout(()=>{}, 30000);
+            continue;
+        } else {
+
+        }
+    }*/
+});
+
+/*.then(async () => {
 
 
-    /*var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
+    var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
     await web3.eth.getTransactionReceiptMined(tx);
     if (ctr.mitgn.approved(tasks[0].id)) {
         console.log("Approved task", tasks[0].id);
@@ -102,8 +140,8 @@ new Promise(async (res) => {
         console.log("Balances after start:", balances(customers.slice(1).map(c => c.addr)));
     }
     var sTime = ctr.mitgn.getStartTime(tasks[0].id);
-    return sTime;*/
-});/*.then(async (sTime) => {
+    return sTime;
+}).then(async (sTime) => {
     var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
 
     var proofHash = await new Promise((res, rej) => {
@@ -190,9 +228,6 @@ new Promise(async (res) => {
     }
 });*/
 
-
-//const delay = ms => new Promise(r => setTimeout(r, ms));
-
 function balances(_accounts) {
     var balances = [];
     for (var i in _accounts) {
@@ -226,30 +261,60 @@ async function createCustomers(_ctr, _n) {
 function watchEvents(_contract, _event) {
     return _contract[_event]({}, { address: _contract.address }).watch(async (error, result) => {
         if (!error) {
-            if (_event == "TaskCreated") {
-                await web3.eth.getTransactionReceiptMined(result.transactionHash);
-                console.log(_event,":", result.args);
+            // wait until the transaction that triggered the event
+            // is confirmed on the ledger
+            await web3.eth.getTransactionReceiptMined(result.transactionHash);
+            console.log(_event,":", result.args);
 
-                // add new task to the pool of all tasks
-                var task;
+            if (ctr.mitgn.taskExists(result.args._taskId)) {
+                // decide the next move
+                switch (_event) {
+                    case "TaskCreated":
+                        // add new task to the pool of all tasks
+                        var task = new Task(result.args._taskId.toNumber(),
+                            customerWithAddr(result.args._target),
+                            customerWithAddr(result.args._mitigator));
+                        tasks.push(task);
+                        console.log("Created tasks:", tasks);
 
-                if (ctr.mitgn.taskExists(result.args._taskId)) {
-                    var ledgerTask = ctr.mitgn.tasks(result.args._taskId);
-                    task = new Task(result.args._taskId,
-                        customerWithAddr(result.args._target),
-                        customerWithAddr(result.args._mitigator));
-                    tasks.push(task);
-                    console.log("Created tasks:", tasks);
+                        var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
+                        var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
+                        console.log("Service deadline:", serviceDeadline.toNumber());
+                        console.log("Validation deadline:", validationDeadline.toNumber());
 
-                    var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
-                    var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
-                    console.log("Service deadline:", serviceDeadline.toNumber());
-                    console.log("Validation deadline:", validationDeadline.toNumber());
+                        await task.advance();  // approve
+                        if (ctr.mitgn.approved(task.id)) {
+                            console.log("M approved task", task.id);
+                        }
 
-                    await task.advance();
-                    if (ctr.mitgn.aborted(task.id)) {
-                        console.log("UndecidedMitigator advanced task", task.id);
-                    }
+                        await task.advance();  // start
+                        if (ctr.mitgn.started(task.id)) {
+                            console.log("T started task", task.id);
+                        }
+
+                        await task.advance();  // upload proof
+                        if (ctr.mitgn.proofUploaded(task.id)) {
+                            console.log("M uploaded proof for task", task.id);
+                        }
+                        break;
+
+                    case "TaskAborted":
+                        var task = taskWithId(result.args._taskId.toNumber());
+
+                        // mark task inactive
+                        inactive_tasks.push(task);
+
+                        // remove from active task list
+                        var index = tasks.indexOf(task);
+                        if (index > -1) {
+                            tasks.splice(index, 1);
+                        }
+
+                        console.log("Inactive tasks:", inactive_tasks);
+                        console.log("Remaining active tasks:", tasks);
+                        break;
+
+                    default:
                 }
             }
         }
@@ -258,6 +323,10 @@ function watchEvents(_contract, _event) {
 
 function customerWithAddr(_addr) {
     return customers.find(c => c.addr == _addr );
+}
+
+function taskWithId(_id) {
+    return tasks.find(t => t.id == _id);
 }
 
 function deployContract(_from, _ctr, _bytecode) {

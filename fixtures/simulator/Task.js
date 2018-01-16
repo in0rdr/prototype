@@ -3,18 +3,12 @@ class Task {
         this.id = _id;
         this.tar = _tar;
         this.mit = _mit;
-        this.next = _mit;
+        this.next = _tar;
     }
 
     advance() {
-        if (this.next == this.mit) {
-            return this.mit.advance(this.id);
-            this.next = this.tar;
-        } else if (this.next == this.tar) {
-            return this.tar.advance(this.id);
-            this.next = this.mit;
-        }
-
+        this.next = (this.next == this.mit) ? this.tar : this.mit;
+        return this.next.advance(this.id);
     }
 }
 
