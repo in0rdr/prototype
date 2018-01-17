@@ -293,6 +293,9 @@ function watchEvents(_contract, _event) {
                             console.log("T started task", task.id);
                         }
 
+                        var sTime = ctr.mitgn.getStartTime(task.id);
+                        console.log("Start time:", sTime);
+
                         await task.advance();  // upload proof
                         if (ctr.mitgn.proofUploaded(task.id)) {
                             console.log("M uploaded proof for task", task.id);
@@ -302,6 +305,14 @@ function watchEvents(_contract, _event) {
                         if (ctr.rep.attackTargetRated(task.id)) {
                             console.log("R rated M in task", task.id);
                         }
+                        if (ctr.mitgn.acknowledged(task.id)) {
+                            console.log("R acknowledged task", task.id);
+                        }
+
+                        console.log("Current block number:", web3.eth.blockNumber);
+                        var validationDeadline = ctr.mitgn.getValidationDeadline(task.id);
+                        console.log("Validation deadline:", sTime.plus(validationDeadline).toNumber());
+
                         break;
 
                     case "TaskAborted":

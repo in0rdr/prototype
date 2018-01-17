@@ -72,6 +72,10 @@ class SatisfiedTarget extends SelfishTarget {
                 console.log("Created IPFS reputon:", reputonHash);
                 var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
+
+                // validate
+                tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
             }
             res(receipt);
         });
