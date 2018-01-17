@@ -55,7 +55,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 5);
+    return createCustomers(ctr.id, 6);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
@@ -65,9 +65,10 @@ new Promise(async (res) => {
     console.log("Selecting customer strategies...");
     customers[0] = new Target.UndecidedTarget(customers[0]);
     customers[1] = new Target.SelfishTarget(customers[1]);
-    customers[2] = new Mitigator.UndecidedMitigator(customers[2]);
-    customers[3] = new Mitigator.LazyMitigator(customers[3]);
-    customers[4] = new Mitigator.SelfishMitigator(customers[4]);
+    customers[2] = new Target.SatisfiedTarget(customers[2]);
+    customers[3] = new Mitigator.UndecidedMitigator(customers[3]);
+    customers[4] = new Mitigator.LazyMitigator(customers[4]);
+    customers[5] = new Mitigator.SelfishMitigator(customers[5]);
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
@@ -91,8 +92,8 @@ new Promise(async (res) => {
                 }*/
 
                 // deterministic customer selection for testing
-                var target = customers[1]
-                var mitigator = customers[2]
+                var target = customers[2]
+                var mitigator = customers[5]
 
                 console.log("Creating a new task with");
                 console.log(" >> Target:", target);
@@ -295,6 +296,11 @@ function watchEvents(_contract, _event) {
                         await task.advance();  // upload proof
                         if (ctr.mitgn.proofUploaded(task.id)) {
                             console.log("M uploaded proof for task", task.id);
+                        }
+
+                        await task.advance();  // rate
+                        if (ctr.rep.attackTargetRated(task.id)) {
+                            console.log("R rated M in task", task.id);
                         }
                         break;
 

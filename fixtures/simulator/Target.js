@@ -42,6 +42,42 @@ class SelfishTarget extends Target {
     }
 }
 
+class SatisfiedTarget extends SelfishTarget {
+    constructor(_options) {
+        super(_options);
+    }
+
+    advance(_id) {
+        return new Promise(async (res, rej) => {
+            var receipt = await super.advance(_id);
+            if (ctr.mitgn.proofUploaded(_id)) {
+                // rate
+                var reputonHash = await new Promise((resolve, reject) => {
+                    ipfs.files.add(new Buffer(`{
+                        "application": "mitigation",
+                        "reputons": [
+                         {
+                           "rater": "${ctr.mitgn.getTarget(_id)}",
+                           "assertion": "proof-ok",
+                           "rated": "${_id}",
+                           "rating": 1,
+                           "sample-size": 1
+                         }
+                        ]
+                    }`), (err, result) => {
+                        if (err) reject(err);
+                        resolve(result[0].hash);
+                    });
+                });
+                console.log("Created IPFS reputon:", reputonHash);
+                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
+            }
+            res(receipt);
+        });
+    }
+}
+
 module.exports = function(_web3, _ctr, _GAS_EST) {
     web3 = _web3;
     ctr = _ctr;
@@ -51,5 +87,6 @@ module.exports = function(_web3, _ctr, _GAS_EST) {
     module.Target = Target;
     module.UndecidedTarget = UndecidedTarget;
     module.SelfishTarget = SelfishTarget;
+    module.SatisfiedTarget = SatisfiedTarget;
     return module;
 }
