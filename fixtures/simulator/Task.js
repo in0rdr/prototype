@@ -3,12 +3,13 @@ class Task {
         this.id = _id;
         this.tar = _tar;
         this.mit = _mit;
-        this.next = _tar;
+        this.next = _mit; // todo: randomize first next
     }
 
     advance() {
+        var result = this.next.advance(this.id);
         this.next = (this.next == this.mit) ? this.tar : this.mit;
-        return this.next.advance(this.id);
+        return result;
     }
 }
 

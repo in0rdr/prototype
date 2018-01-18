@@ -27,7 +27,15 @@ var Mitigator, Target;
 var customers = [];
 
 var tasks = [];
-var inactive_tasks = [];
+var completed_tasks = [];
+
+process.on('unhandledRejection', (reason, p) => {
+    console.log("***************************************");
+    console.log('Unhandled Rejection at: Promise', p)
+    console.log("---------------------------------------");
+    console.log('Reason:', reason);
+    console.log("***************************************");
+});
 
 new Promise(async (res) => {
     // deploy contracts
@@ -55,7 +63,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 6);
+    return createCustomers(ctr.id, 7);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
@@ -69,165 +77,61 @@ new Promise(async (res) => {
     customers[3] = new Mitigator.UndecidedMitigator(customers[3]);
     customers[4] = new Mitigator.LazyMitigator(customers[4]);
     customers[5] = new Mitigator.SelfishMitigator(customers[5]);
+    customers[6] = new Mitigator.RationalMitigator(customers[6]);
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
-    var createIps;
-
-    // prepare an attacker file
-    // (task scope / IPs to block)
-    createIps = spawn('python', ['createIPs.py', 1, 5]);
-    createIps.stdout.on('data', function (data){
-        ipfs.files.add(new Buffer(data), (err, result) => {
-            if (!err) {
-                /*
-                // select random customers profile
-                var target = mitigator = new Customer({});
-
-                while (!(Object.getPrototypeOf(target) instanceof Target.Target
-                    && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
-                    target = customers[Math.floor(Math.random()*customers.length)];
-                    mitigator = customers[Math.floor(Math.random()*customers.length)];
-                    console.log("Sampled new customers")
-                }*/
-
-                // deterministic customer selection for testing
-                var target = customers[2]
-                var mitigator = customers[5]
-
-                console.log("Creating a new task with");
-                console.log(" >> Target:", target);
-                console.log(" >> Mitigator:", mitigator);
-
-                // create a new task with the chosen customer strategy
-                var tx = ctr.mitgn.newTask.sendTransaction(
-                    ctr.id.address,
-                    target.addr,
-                    mitigator.addr,
-                    3,
-                    6,
-                    web3.toWei(1, "ether"),
-                    result[0].hash,
-                    {from: target.addr, gas: GAS_EST});
-                console.log("Created task with tx hash:", tx);
-            }
-        });
-    });
-    /*for (;;) {
-        if (tasks.length > 10) {
-            console.log("Still 10 tasks in pipelne, checking again in 30s..");
-            setTimeout(()=>{}, 30000);
-            continue;
-        } else {
-
-        }
-    }*/
+    replenishTasks();
+    //setInterval(replenishTasks, 30000);
 });
 
-/*.then(async () => {
+function replenishTasks() {
+        if (tasks.length >= 1) {
+            console.log("Still 1 task in pipelne, checking again in 30s..");
+        } else {
+            console.log("Not enough tasks, creating new one..");
+            var createIps;
 
+            // prepare an attacker file
+            // (task scope / IPs to block)
+            createIps = spawn('python', ['createIPs.py', 1, 5]);
+            createIps.stdout.on('data', function (data){
+                ipfs.files.add(new Buffer(data), (err, result) => {
+                    if (!err) {
+                        /*
+                        // select random customers profile
+                        var target = mitigator = new Customer({});
 
-    var tx = ctr.mitgn.approve.sendTransaction(tasks[0].id, {from: mitigators.honest[0].addr, gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx);
-    if (ctr.mitgn.approved(tasks[0].id)) {
-        console.log("Approved task", tasks[0].id);
-    }
+                        while (!(Object.getPrototypeOf(target) instanceof Target.Target
+                            && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
+                            target = customers[Math.floor(Math.random()*customers.length)];
+                            mitigator = customers[Math.floor(Math.random()*customers.length)];
+                            console.log("Sampled new customers")
+                        }*/
 
-    console.log("Balances before start:", balances(customers.slice(1).map(c => c.addr)));
-    tx = ctr.mitgn.start.sendTransaction(tasks[0].id, {from: targets.honest[0].addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx);
-    if (ctr.mitgn.started(tasks[0].id)) {
-        console.log("Started task", tasks[0].id);
-        console.log("Balances after start:", balances(customers.slice(1).map(c => c.addr)));
-    }
-    var sTime = ctr.mitgn.getStartTime(tasks[0].id);
-    return sTime;
-}).then(async (sTime) => {
-    var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
+                        // deterministic customer selection for testing
+                        var target = customers[2]
+                        var mitigator = customers[6]
 
-    var proofHash = await new Promise((res, rej) => {
-        ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
-            if (err) rej(err);
-            res(result[0].hash);
-        });
-    });
-    console.log("Crated IPFS proof:", proofHash);
+                        console.log("Creating a new task with");
+                        console.log(" >> Target:", target);
+                        console.log(" >> Mitigator:", mitigator);
 
-    // mitigator uploads proof
-    tx = ctr.mitgn.uploadProof.sendTransaction(tasks[0].id, proofHash, {from: mitigators.honest[0].addr, gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx);
-    if (ctr.mitgn.proofUploaded(tasks[0].id)) {
-        console.log("Uploaded proof for task", tasks[0].id);
-    }
-
-    // attack target rates
-    var reputonHash = await new Promise((res, rej) => {
-        ipfs.files.add(new Buffer(`{
-            "application": "mitigation",
-            "reputons": [
-             {
-               "rater": "${ctr.mitgn.getTarget(0)}",
-               "assertion": "proof-ok",
-               "rated": "0",
-               "rating": 1,
-               "sample-size": 1
-             }
-            ]
-        }`), (err, result) => {
-            if (err) rej(err);
-            res(result[0].hash);
-        });
-    });
-    console.log("Crated IPFS reputon hash:", reputonHash);
-    tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, reputonHash, {from: targets.honest[0].addr, gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx);
-    if (ctr.rep.attackTargetRated(tasks[0].id)) {
-        console.log("Target rated for task", tasks[0].id);
-    }
-
-    console.log("Balances before ack:", balances(customers.slice(1).map(c => c.addr)));
-    tx = ctr.mitgn.validateProof.sendTransaction(tasks[0].id, true, ctr.rep.address, {from: targets.honest[0].addr, gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx);
-    if (ctr.mitgn.acknowledged(tasks[0].id)) {
-        console.log("Targed validated task", tasks[0].id);
-        console.log("Balances after ack:", balances(customers.slice(1).map(c => c.addr)));
-    }
-
-    // wait for the validation deadline to expire
-    while (web3.eth.blockNumber <= sTime.plus(validationDeadline).toNumber()) {
-        console.log(web3.eth.blockNumber, sTime.plus(validationDeadline).toNumber());
-        console.log("Block number too low, checking again in 10s..");
-        setTimeout(()=>{}, 10000);
-    }
-
-    console.log(web3.eth.blockNumber, sTime.plus(validationDeadline).toNumber());
-    console.log("Validation deadline expired");
-
-    // mitigator rates
-    reputonHash = await new Promise((res, rej) => {
-        ipfs.files.add(new Buffer(`{
-            "application": "mitigation",
-            "reputons": [
-             {
-               "rater": "${ctr.mitgn.getMitigator(0)}",
-               "assertion": "target-ok",
-               "rated": "0",
-               "rating": 1,
-               "sample-size": 1
-             }
-            ]
-        }`), (err, result) => {
-            if (err) rej(err);
-            res(result[0].hash);
-        });
-    });
-    console.log("Crated IPFS reputon hash:", reputonHash);
-    var tx2 = ctr.rep.rate.sendTransaction(ctr.mitgn.address, tasks[0].id, reputonHash, {from: mitigators.honest[0].addr, gas: GAS_EST});
-    await web3.eth.getTransactionReceiptMined(tx2);
-    if (ctr.rep.mitigatorRated(tasks[0].id)) {
-        console.log("Mitigator rated task", tasks[0].id);
-    }
-});*/
+                        // create a new task with the chosen customer strategy
+                        var tx = ctr.mitgn.newTask.sendTransaction(
+                            ctr.id.address,
+                            target.addr,
+                            mitigator.addr,
+                            3,// todo: randomize deadlines
+                            8,
+                            web3.toWei(1, "ether"),
+                            result[0].hash,
+                            {from: target.addr, gas: GAS_EST});
+                    }
+                });
+            });
+        }
+}
 
 function balances(_accounts) {
     var balances = [];
@@ -276,59 +180,62 @@ function watchEvents(_contract, _event) {
                             customerWithAddr(result.args._target),
                             customerWithAddr(result.args._mitigator));
                         tasks.push(task);
-                        console.log("Created tasks:", tasks);
 
-                        var serviceDeadline = ctr.mitgn.getServiceDeadline(tasks[0].id);
-                        var validationDeadline = ctr.mitgn.getValidationDeadline(tasks[0].id);
-                        console.log("Service deadline:", serviceDeadline.toNumber());
-                        console.log("Validation deadline:", validationDeadline.toNumber());
+                        // advance task while active
+                        // a task is active as long as:
+                        //  (1) not yet aborted
+                        //  (2) no final mitigator rating
+                        var next, startTime, serviceDeadline, validationDeadline;
+                        while (!ctr.mitgn.aborted(task.id) ? !ctr.rep.mitigatorRated(task.id) : false ) {
+                            next = task.next;
 
-                        await task.advance();  // approve
-                        if (ctr.mitgn.approved(task.id)) {
-                            console.log("M approved task", task.id);
+                            startTime = ctr.mitgn.getStartTime(task.id).toNumber();
+                            serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
+                            validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+
+                            console.log("----------------------------------------");
+                            console.log(" Next move");
+                            console.log("  - Profile:", next.constructor.name);
+                            console.log("  - Time:");
+                            console.log("    - Block:", web3.eth.blockNumber);
+                            console.log("    - Start:", startTime);
+                            console.log("    - Service:", serviceDeadline);
+                            console.log("    - Validation:", validationDeadline);
+
+                            await task.advance();
+
+                            // if validation deadline expired,
+                            // abort stuck tasks as "next" player
+                            if (ctr.mitgn.started(task.id) && web3.eth.blockNumber > validationDeadline) {
+                                if (Object.getPrototypeOf(next) instanceof Target.Target || ctr.mitgn.proofUploaded(task.id)) {
+                                    // only abort as mitigator if proof uploded
+                                    // always abort as target
+                                    tx = ctr.mitgn.abort.sendTransaction(task.id, {from: next.addr, gas: GAS_EST});
+                                    await web3.eth.getTransactionReceiptMined(tx);
+                                    console.log(next.constructor.name, "aborted task due to VALIDATION TIMEOUT", task.id);
+                                }
+                            }
+
+                            console.log(next.constructor.name, "advanced task", task.id);
                         }
 
-                        await task.advance();  // start
-                        if (ctr.mitgn.started(task.id)) {
-                            console.log("T started task", task.id);
-                        }
-
-                        var sTime = ctr.mitgn.getStartTime(task.id);
-                        console.log("Start time:", sTime);
-
-                        await task.advance();  // upload proof
-                        if (ctr.mitgn.proofUploaded(task.id)) {
-                            console.log("M uploaded proof for task", task.id);
-                        }
-
-                        await task.advance();  // rate
-                        if (ctr.rep.attackTargetRated(task.id)) {
-                            console.log("R rated M in task", task.id);
-                        }
-                        if (ctr.mitgn.acknowledged(task.id)) {
-                            console.log("R acknowledged task", task.id);
-                        }
-
-                        console.log("Current block number:", web3.eth.blockNumber);
-                        var validationDeadline = ctr.mitgn.getValidationDeadline(task.id);
-                        console.log("Validation deadline:", sTime.plus(validationDeadline).toNumber());
-
-                        break;
-
-                    case "TaskAborted":
-                        var task = taskWithId(result.args._taskId.toNumber());
+                        console.log("----------------------------------------");
+                        console.log("Task", task.id, "completed");
 
                         // mark task inactive
-                        inactive_tasks.push(task);
-
+                        completed_tasks.push(task);
                         // remove from active task list
                         var index = tasks.indexOf(task);
                         if (index > -1) {
                             tasks.splice(index, 1);
                         }
 
-                        console.log("Inactive tasks:", inactive_tasks);
+                        console.log("Inactive tasks:", completed_tasks);
                         console.log("Remaining active tasks:", tasks);
+
+                        break;
+
+                    case "TaskAborted":
                         break;
 
                     default:
