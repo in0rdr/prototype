@@ -61,7 +61,7 @@ class SatisfiedTarget extends SelfishTarget {
 
                 // validate
                 console.log(this.constructor.name, "ACKNOWLEDGES task", _id);
-                tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                var tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
             } else {
                 console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");
@@ -89,7 +89,7 @@ class DissatisfiedTarget extends SelfishTarget {
 
                 // validate
                 console.log(this.constructor.name, "REJECTS task", _id);
-                tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                var tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
             } else {
                 console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");
@@ -118,7 +118,7 @@ class IrrationalTarget extends SelfishTarget {
 
                 // validate against expectations/rating
                 console.log(this.constructor.name, (rating === 0) ? "ACKNOWLEDGES" : "REJECTS", "task", _id);
-                tx = ctr.mitgn.validateProof.sendTransaction(_id, !rating, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                var tx = ctr.mitgn.validateProof.sendTransaction(_id, !rating, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
             } else {
                 console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");

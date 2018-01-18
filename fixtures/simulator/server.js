@@ -16,6 +16,7 @@ var accounts = web3.eth.accounts;
 console.log("Currently", accounts.length, "accounts");
 var contracts = loadContracts();
 var ctr, custFilter, taskFilter;
+var utils;
 
 var idAbi = JSON.parse(contracts.identity.interface);
 var mitigationAbi = JSON.parse(contracts.mitigation.interface);
@@ -28,14 +29,6 @@ var customers = [];
 
 var tasks = [];
 var completed_tasks = [];
-
-process.on('unhandledRejection', (reason, p) => {
-    console.log("***************************************");
-    console.log('Unhandled Rejection at: Promise', p)
-    console.log("---------------------------------------");
-    console.log('Reason:', reason);
-    console.log("***************************************");
-});
 
 new Promise(async (res) => {
     // deploy contracts
@@ -60,16 +53,20 @@ new Promise(async (res) => {
     // setup simulation peers
     Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
     Target = require('./Target.js')(web3, ctr, GAS_EST);
+
+    // setup unhandled promise exception logger
+    utils = require('./utils.js')(web3, ctr, GAS_EST);
+    utils.enableLogger();
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 10);
+    return createCustomers(ctr.id, 11);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
     console.log("Created customers:", newCustomers);
 
-    // select peer profiles/strategies
+    // select customer profiles/strategies
     console.log("Selecting customer strategies...");
     customers[0] = new Target.UndecidedTarget(customers[0]);
     customers[1] = new Target.SelfishTarget(customers[1]);
@@ -81,6 +78,7 @@ new Promise(async (res) => {
     customers[7] = new Mitigator.SelfishMitigator(customers[7]);
     customers[8] = new Mitigator.RationalMitigator(customers[8]);
     customers[9] = new Mitigator.AltruisticMitigator(customers[9]);
+    customers[10] = new Mitigator.MaliciousMitigator(customers[10]);
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
@@ -114,7 +112,7 @@ function replenishTasks() {
 
                         // deterministic customer selection for testing
                         var target = customers[4]
-                        var mitigator = customers[9]
+                        var mitigator = customers[10]
 
                         console.log("Creating a new task with");
                         console.log(" >> Target:", target);
@@ -134,15 +132,6 @@ function replenishTasks() {
                 });
             });
         }
-}
-
-function balances(_accounts) {
-    var balances = [];
-    for (var i in _accounts) {
-        var balance = web3.toWei(web3.eth.getBalance(_accounts[i]), "ether");
-        balances.push(web3.fromWei(balance, "ether").toNumber());
-    }
-    return balances;
 }
 
 async function createCustomers(_ctr, _n) {

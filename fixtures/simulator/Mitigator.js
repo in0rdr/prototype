@@ -129,7 +129,7 @@ class RationalMitigator extends SelfishMitigator {
                 // if this was a selfish target,
                 // abort task to claim the price
                 if (ctr.mitgn.proofUploaded(_id)) {
-                    tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
+                    var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
                     receipt = web3.eth.getTransactionReceiptMined(tx);
                 }
             } else {
@@ -166,6 +166,32 @@ class AltruisticMitigator extends SelfishMitigator {
     }
 }
 
+class MaliciousMitigator extends SelfishMitigator {
+    constructor(_options) {
+        super(_options);
+    }
+
+    advance(_id) {
+        return new Promise(async (res, rej) => {
+            var receipt = await super.advance(_id);
+
+            var startTime = ctr.mitgn.getStartTime(_id);
+            var validationDeadline = ctr.mitgn.getValidationDeadline(_id);
+
+            // only advance after validation deadline expired
+            if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
+                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
+
+                // always rate negatively
+                receipt = await utils.rate(0, ctr.mitgn.getMitigator(_id), _id, "target-ok");
+            } else {
+                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
+            }
+            res(receipt);
+        });
+    }
+}
+
 module.exports = function(_web3, _ipfs, _ctr, _GAS_EST) {
     web3 = _web3;
     ctr = _ctr;
@@ -180,5 +206,6 @@ module.exports = function(_web3, _ipfs, _ctr, _GAS_EST) {
     module.SelfishMitigator = SelfishMitigator;
     module.RationalMitigator = RationalMitigator;
     module.AltruisticMitigator = AltruisticMitigator;
+    module.MaliciousMitigator = MaliciousMitigator;
     return module;
 }
