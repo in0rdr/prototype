@@ -63,7 +63,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 9);
+    return createCustomers(ctr.id, 10);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
@@ -80,6 +80,7 @@ new Promise(async (res) => {
     customers[6] = new Mitigator.LazyMitigator(customers[6]);
     customers[7] = new Mitigator.SelfishMitigator(customers[7]);
     customers[8] = new Mitigator.RationalMitigator(customers[8]);
+    customers[9] = new Mitigator.AltruisticMitigator(customers[9]);
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
@@ -113,7 +114,7 @@ function replenishTasks() {
 
                         // deterministic customer selection for testing
                         var target = customers[4]
-                        var mitigator = customers[8]
+                        var mitigator = customers[9]
 
                         console.log("Creating a new task with");
                         console.log(" >> Target:", target);

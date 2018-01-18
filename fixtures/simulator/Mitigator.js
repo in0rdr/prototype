@@ -1,15 +1,12 @@
 var web3, ctr, GAS_EST;
+var utils;
 var Customer = require('./Customer.js');
 
 class Mitigator extends Customer {
     constructor(_options) {
         super(_options)
     }
-
-    approve() {}
-    uploadProof() {}
-    rate() {}
-    abort() {}
+    advance() {}
 }
 
 class UndecidedMitigator extends Mitigator {
@@ -127,28 +124,7 @@ class RationalMitigator extends SelfishMitigator {
                     rating = 1;
                     console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target didn't validate but rated (+)");
                 }
-
-                var reputonHash = await new Promise((resolve, reject) => {
-                    ipfs.files.add(new Buffer(`{
-                        "application": "mitigation",
-                        "reputons": [
-                         {
-                           "rater": "${ctr.mitgn.getMitigator(_id)}",
-                           "assertion": "target-ok",
-                           "rated": ${_id},
-                           "rating": ${rating},
-                           "sample-size": 1
-                         }
-                        ]
-                    }`), (err, result) => {
-                        if (err) reject(err);
-                        resolve(result[0].hash);
-                    });
-                });
-                console.log(this.constructor.name, "rates", (rating === 1) ? "POSITIVELY (+)" : "NEGATIVELY (-)" ,"task", _id);
-                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-                receipt = await web3.eth.getTransactionReceiptMined(tx);
+                receipt = await utils.rate(rating, ctr.mitgn.getMitigator(_id), _id, "target-ok");
 
                 // if this was a selfish target,
                 // abort task to claim the price
@@ -164,11 +140,38 @@ class RationalMitigator extends SelfishMitigator {
     }
 }
 
+class AltruisticMitigator extends SelfishMitigator {
+    constructor(_options) {
+        super(_options);
+    }
+
+    advance(_id) {
+        return new Promise(async (res, rej) => {
+            var receipt = await super.advance(_id);
+
+            var startTime = ctr.mitgn.getStartTime(_id);
+            var validationDeadline = ctr.mitgn.getValidationDeadline(_id);
+
+            // only advance after validation deadline expired
+            if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
+                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
+
+                // always rate positively
+                receipt = await utils.rate(1, ctr.mitgn.getMitigator(_id), _id, "target-ok");
+            } else {
+                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
+            }
+            res(receipt);
+        });
+    }
+}
+
 module.exports = function(_web3, _ipfs, _ctr, _GAS_EST) {
     web3 = _web3;
     ctr = _ctr;
     ipfs = _ipfs;
     GAS_EST = _GAS_EST;
+    utils = require('./utils.js')(web3, ctr, GAS_EST);
 
     var module = {};
     module.Mitigator = Mitigator;
@@ -176,5 +179,6 @@ module.exports = function(_web3, _ipfs, _ctr, _GAS_EST) {
     module.LazyMitigator = LazyMitigator;
     module.SelfishMitigator = SelfishMitigator;
     module.RationalMitigator = RationalMitigator;
+    module.AltruisticMitigator = AltruisticMitigator;
     return module;
 }

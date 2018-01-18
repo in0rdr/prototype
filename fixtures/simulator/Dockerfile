@@ -8,6 +8,7 @@ WORKDIR /simulator
 
 COPY contracts contracts
 COPY compiler.js .
+COPY utils.js .
 COPY server.js .
 COPY Customer.js .
 COPY Mitigator.js .

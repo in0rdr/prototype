@@ -1,14 +1,12 @@
 var web3, ctr, GAS_EST;
+var utils;
 var Customer = require('./Customer.js');
 
 class Target extends Customer {
     constructor(_options) {
         super(_options)
     }
-
-    rate() {}
-    validate() {}
-    abort() {}
+    advance() {}
 }
 
 class UndecidedTarget extends Target {
@@ -59,28 +57,7 @@ class SatisfiedTarget extends SelfishTarget {
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
             if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
                 // always rate positively
-                var reputonHash = await new Promise((resolve, reject) => {
-                    ipfs.files.add(new Buffer(`{
-                        "application": "mitigation",
-                        "reputons": [
-                         {
-                           "rater": "${ctr.mitgn.getTarget(_id)}",
-                           "assertion": "proof-ok",
-                           "rated": ${_id},
-                           "rating": 1,
-                           "sample-size": 1
-                         }
-                        ]
-                    }`), (err, result) => {
-                        if (err) reject(err);
-                        resolve(result[0].hash);
-                    });
-                });
-
-                console.log(this.constructor.name, "rates task", _id, "POSITIVELY (+)");
-                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-                receipt = await web3.eth.getTransactionReceiptMined(tx);
+                receipt = await utils.rate(1, ctr.mitgn.getTarget(_id), _id, "proof-ok");
 
                 // validate
                 console.log(this.constructor.name, "ACKNOWLEDGES task", _id);
@@ -108,28 +85,7 @@ class DissatisfiedTarget extends SelfishTarget {
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
             if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
                 // always rate negatively
-                var reputonHash = await new Promise((resolve, reject) => {
-                    ipfs.files.add(new Buffer(`{
-                        "application": "mitigation",
-                        "reputons": [
-                         {
-                           "rater": "${ctr.mitgn.getTarget(_id)}",
-                           "assertion": "proof-ok",
-                           "rated": ${_id},
-                           "rating": 0,
-                           "sample-size": 1
-                         }
-                        ]
-                    }`), (err, result) => {
-                        if (err) reject(err);
-                        resolve(result[0].hash);
-                    });
-                });
-
-                console.log(this.constructor.name, "rates task", _id, "NEGATIVELY (-)");
-                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-                receipt = await web3.eth.getTransactionReceiptMined(tx);
+                receipt = await utils.rate(0, ctr.mitgn.getTarget(_id), _id, "proof-ok");
 
                 // validate
                 console.log(this.constructor.name, "REJECTS task", _id);
@@ -158,28 +114,7 @@ class IrrationalTarget extends SelfishTarget {
             if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
                 // rate positive/negative 50/50
                 var rating = Math.floor(Math.random() * 2);
-                var reputonHash = await new Promise((resolve, reject) => {
-                    ipfs.files.add(new Buffer(`{
-                        "application": "mitigation",
-                        "reputons": [
-                         {
-                           "rater": "${ctr.mitgn.getTarget(_id)}",
-                           "assertion": "proof-ok",
-                           "rated": ${_id},
-                           "rating": ${rating},
-                           "sample-size": 1
-                         }
-                        ]
-                    }`), (err, result) => {
-                        if (err) reject(err);
-                        resolve(result[0].hash);
-                    });
-                });
-
-                console.log(this.constructor.name, "rates task", _id, (rating === 0) ? "NEGATIVELY (-)" : "POSITIVELY (+)");
-                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-                receipt = await web3.eth.getTransactionReceiptMined(tx);
+                receipt = await utils.rate(rating, ctr.mitgn.getTarget(_id), _id, "proof-ok");
 
                 // validate against expectations/rating
                 console.log(this.constructor.name, (rating === 0) ? "ACKNOWLEDGES" : "REJECTS", "task", _id);
@@ -198,6 +133,7 @@ module.exports = function(_web3, _ctr, _GAS_EST) {
     web3 = _web3;
     ctr = _ctr;
     GAS_EST = _GAS_EST;
+    utils = require('./utils.js')(web3, ctr, GAS_EST);
 
     var module = {};
     module.Target = Target;
