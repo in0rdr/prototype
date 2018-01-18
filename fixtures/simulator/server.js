@@ -63,7 +63,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 7);
+    return createCustomers(ctr.id, 9);
 }).then((newCustomers) => {
     // add new customers to the pool of all customers
     customers = customers.concat(newCustomers);
@@ -74,10 +74,12 @@ new Promise(async (res) => {
     customers[0] = new Target.UndecidedTarget(customers[0]);
     customers[1] = new Target.SelfishTarget(customers[1]);
     customers[2] = new Target.SatisfiedTarget(customers[2]);
-    customers[3] = new Mitigator.UndecidedMitigator(customers[3]);
-    customers[4] = new Mitigator.LazyMitigator(customers[4]);
-    customers[5] = new Mitigator.SelfishMitigator(customers[5]);
-    customers[6] = new Mitigator.RationalMitigator(customers[6]);
+    customers[3] = new Target.DissatisfiedTarget(customers[3]);
+    customers[4] = new Target.IrrationalTarget(customers[4]);
+    customers[5] = new Mitigator.UndecidedMitigator(customers[5]);
+    customers[6] = new Mitigator.LazyMitigator(customers[6]);
+    customers[7] = new Mitigator.SelfishMitigator(customers[7]);
+    customers[8] = new Mitigator.RationalMitigator(customers[8]);
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
@@ -110,8 +112,8 @@ function replenishTasks() {
                         }*/
 
                         // deterministic customer selection for testing
-                        var target = customers[2]
-                        var mitigator = customers[6]
+                        var target = customers[4]
+                        var mitigator = customers[8]
 
                         console.log("Creating a new task with");
                         console.log(" >> Target:", target);
@@ -122,8 +124,8 @@ function replenishTasks() {
                             ctr.id.address,
                             target.addr,
                             mitigator.addr,
-                            3,// todo: randomize deadlines
-                            8,
+                            4,// todo: randomize deadlines
+                            10,
                             web3.toWei(1, "ether"),
                             result[0].hash,
                             {from: target.addr, gas: GAS_EST});

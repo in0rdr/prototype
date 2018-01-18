@@ -106,7 +106,7 @@ class DissatisfiedTarget extends SelfishTarget {
 
             var startTime = ctr.mitgn.getStartTime(_id).toNumber();
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
-            if (web3.eth.blockNumber > serviceDeadline) {
+            if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
                 // always rate negatively
                 var reputonHash = await new Promise((resolve, reject) => {
                     ipfs.files.add(new Buffer(`{
@@ -126,7 +126,7 @@ class DissatisfiedTarget extends SelfishTarget {
                     });
                 });
 
-                console.log(this.constructor.name, "rates task", _id, "NEGATIVELY (+)");
+                console.log(this.constructor.name, "rates task", _id, "NEGATIVELY (-)");
                 console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
                 var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
@@ -136,7 +136,7 @@ class DissatisfiedTarget extends SelfishTarget {
                 tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
             } else {
-                console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired");
+                console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");
             }
 
             res(receipt);
@@ -144,6 +144,55 @@ class DissatisfiedTarget extends SelfishTarget {
     }
 }
 
+class IrrationalTarget extends SelfishTarget {
+    constructor(_options) {
+        super(_options);
+    }
+
+    advance(_id) {
+        return new Promise(async (res, rej) => {
+            var receipt = await super.advance(_id);
+
+            var startTime = ctr.mitgn.getStartTime(_id).toNumber();
+            var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
+            if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
+                // rate positive/negative 50/50
+                var rating = Math.floor(Math.random() * 2);
+                var reputonHash = await new Promise((resolve, reject) => {
+                    ipfs.files.add(new Buffer(`{
+                        "application": "mitigation",
+                        "reputons": [
+                         {
+                           "rater": "${ctr.mitgn.getTarget(_id)}",
+                           "assertion": "proof-ok",
+                           "rated": ${_id},
+                           "rating": ${rating},
+                           "sample-size": 1
+                         }
+                        ]
+                    }`), (err, result) => {
+                        if (err) reject(err);
+                        resolve(result[0].hash);
+                    });
+                });
+
+                console.log(this.constructor.name, "rates task", _id, (rating === 0) ? "NEGATIVELY (-)" : "POSITIVELY (+)");
+                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
+                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
+
+                // validate against expectations/rating
+                console.log(this.constructor.name, (rating === 0) ? "ACKNOWLEDGES" : "REJECTS", "task", _id);
+                tx = ctr.mitgn.validateProof.sendTransaction(_id, !rating, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
+            } else {
+                console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");
+            }
+
+            res(receipt);
+        });
+    }
+}
 
 module.exports = function(_web3, _ctr, _GAS_EST) {
     web3 = _web3;
@@ -155,5 +204,7 @@ module.exports = function(_web3, _ctr, _GAS_EST) {
     module.UndecidedTarget = UndecidedTarget;
     module.SelfishTarget = SelfishTarget;
     module.SatisfiedTarget = SatisfiedTarget;
+    module.DissatisfiedTarget = DissatisfiedTarget;
+    module.IrrationalTarget = IrrationalTarget;
     return module;
 }

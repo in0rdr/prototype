@@ -110,16 +110,22 @@ class RationalMitigator extends SelfishMitigator {
                     targetRating = 0;
                 }
 
+                console.log(this.constructor.name, "reads rating from T as", targetRating, "for task", _id);
+
                 // rate according to T's expectation
                 var rating;
                 if (ctr.mitgn.acknowledged(_id)) {
                     rating = 1;
+                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target acknowledged");
                 } else if (ctr.mitgn.rejected(_id)) {
                     rating = 0;
+                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target rejected");
                 } else if (!ctr.mitgn.validated(_id) && targetRating === 0) {
                     rating = 0;
+                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target didn't validate and rated (-)");
                 } else if (!ctr.mitgn.validated(_id) && targetRating === 1) {
                     rating = 1;
+                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target didn't validate but rated (+)");
                 }
 
                 var reputonHash = await new Promise((resolve, reject) => {
