@@ -185,17 +185,13 @@ function watchEvents(_contract, _event) {
                         // a task is active as long as:
                         //  (1) not yet aborted
                         //  (2) no final mitigator rating
-                        var next, startTime, serviceDeadline, validationDeadline;
+                        var currentPlayer, startTime, serviceDeadline, validationDeadline;
                         while (!ctr.mitgn.aborted(task.id) ? !ctr.rep.mitigatorRated(task.id) : false ) {
-                            next = task.next;
-
-                            startTime = ctr.mitgn.getStartTime(task.id).toNumber();
-                            serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
-                            validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+                            currentPlayer = task.next;
 
                             console.log("----------------------------------------");
                             console.log(" Next move");
-                            console.log("  - Profile:", next.constructor.name);
+                            console.log("  - Profile:", currentPlayer.constructor.name);
                             console.log("  - Time:");
                             console.log("    - Block:", web3.eth.blockNumber);
                             console.log("    - Start:", startTime);
@@ -204,19 +200,23 @@ function watchEvents(_contract, _event) {
 
                             await task.advance();
 
+                            startTime = ctr.mitgn.getStartTime(task.id).toNumber();
+                            serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
+                            validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+
                             // if validation deadline expired,
-                            // abort stuck tasks as "next" player
+                            // abort stuck tasks as "currentPlayer" player
                             if (ctr.mitgn.started(task.id) && web3.eth.blockNumber > validationDeadline) {
-                                if (Object.getPrototypeOf(next) instanceof Target.Target || ctr.mitgn.proofUploaded(task.id)) {
+                                if (Object.getPrototypeOf(currentPlayer) instanceof Target.Target || ctr.mitgn.proofUploaded(task.id)) {
                                     // only abort as mitigator if proof uploded
                                     // always abort as target
-                                    tx = ctr.mitgn.abort.sendTransaction(task.id, {from: next.addr, gas: GAS_EST});
+                                    tx = ctr.mitgn.abort.sendTransaction(task.id, {from: currentPlayer.addr, gas: GAS_EST});
                                     await web3.eth.getTransactionReceiptMined(tx);
-                                    console.log(next.constructor.name, "aborted task due to VALIDATION TIMEOUT", task.id);
+                                    console.log(currentPlayer.constructor.name, "aborted task", task.id, "due to VALIDATION TIMEOUT");
                                 }
                             }
 
-                            console.log(next.constructor.name, "advanced task", task.id);
+                            console.log(currentPlayer.constructor.name, "advanced task", task.id);
                         }
 
                         console.log("----------------------------------------");

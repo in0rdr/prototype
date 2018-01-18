@@ -40,7 +40,7 @@ class SelfishTarget extends Target {
             var tx = ctr.mitgn.start.sendTransaction(_id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);
         } else {
-            console.log(this.constructor.name, "NOT starting task", _id, "because NOT APPROVED YET");
+            console.log(this.constructor.name, "NOT starting task", _id, "because already started or not approved yet");
             return Promise.resolve(false);
         }
     }
@@ -55,12 +55,11 @@ class SatisfiedTarget extends SelfishTarget {
         return new Promise(async (res, rej) => {
             var receipt = await super.advance(_id);
 
-            var reputonHash, ack;
             var startTime = ctr.mitgn.getStartTime(_id).toNumber();
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
             if (web3.eth.blockNumber > serviceDeadline) {
                 // always rate positively
-                reputonHash = await new Promise((resolve, reject) => {
+                var reputonHash = await new Promise((resolve, reject) => {
                     ipfs.files.add(new Buffer(`{
                         "application": "mitigation",
                         "reputons": [
@@ -77,17 +76,17 @@ class SatisfiedTarget extends SelfishTarget {
                         resolve(result[0].hash);
                     });
                 });
+
+                console.log(this.constructor.name, "rates task", _id, "POSITIVELY (+)");
+                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
+                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
+
+                // validate
+                console.log(this.constructor.name, "ACKNOWLEDGES task", _id, );
+                tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
             }
-
-            console.log(this.constructor.name, "rates task", _id, "POSITIVELY (+)");
-            console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-            var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
-
-            // validate
-            console.log(this.constructor.name, "ACKNOWLEDGES task", _id, );
-            tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
 
             res(receipt);
         });
@@ -103,12 +102,11 @@ class DissatisfiedTarget extends SelfishTarget {
         return new Promise(async (res, rej) => {
             var receipt = await super.advance(_id);
 
-            var reputonHash, ack;
             var startTime = ctr.mitgn.getStartTime(_id).toNumber();
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
             if (web3.eth.blockNumber > serviceDeadline) {
                 // always rate negatively
-                reputonHash = await new Promise((resolve, reject) => {
+                var reputonHash = await new Promise((resolve, reject) => {
                     ipfs.files.add(new Buffer(`{
                         "application": "mitigation",
                         "reputons": [
@@ -125,17 +123,17 @@ class DissatisfiedTarget extends SelfishTarget {
                         resolve(result[0].hash);
                     });
                 });
+
+                console.log(this.constructor.name, "rates task", _id, "NEGATIVELY (+)");
+                console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
+                var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
+
+                // validate
+                console.log(this.constructor.name, "REJECTS task", _id, );
+                tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+                receipt = await web3.eth.getTransactionReceiptMined(tx);
             }
-
-            console.log(this.constructor.name, "rates task", _id, "NEGATIVELY (+)");
-            console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-            var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _id, reputonHash, {from: this.addr, gas: GAS_EST});
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
-
-            // validate
-            console.log(this.constructor.name, "REJECTS task", _id, );
-            tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
 
             res(receipt);
         });
