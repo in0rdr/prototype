@@ -15,14 +15,10 @@ class UndecidedMitigator extends Mitigator {
     }
 
     advance(_id) {
-        if (!ctr.mitgn.approved(_id)) {
-            console.log(this.constructor.name, "aborting task", _id);
-            var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
-            return web3.eth.getTransactionReceiptMined(tx);
-        } else {
-            console.log(this.constructor.name, "NOT aborting task", _id, "because NOT APPROVED YET");
-            return Promise.resolve(false);
-        }
+        // abort right away at init
+        console.log(this.constructor.name, "aborting task", _id);
+        var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
+        return web3.eth.getTransactionReceiptMined(tx);
     }
 }
 

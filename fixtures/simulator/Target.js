@@ -15,7 +15,7 @@ class UndecidedTarget extends Target {
     }
 
     advance(_id) {
-        if (!ctr.mitgn.approved(_id)) {
+        if (ctr.mitgn.approved(_id)) {
             console.log(this.constructor.name, "aborting task", _id);
             var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);

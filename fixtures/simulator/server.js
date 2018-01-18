@@ -82,24 +82,25 @@ new Promise(async (res) => {
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
-    replenishTasks();
-    //setInterval(replenishTasks, 30000);
+    //replenishTasks();
+    setInterval(replenishTasks, 30000);
 });
 
 function replenishTasks() {
-        if (tasks.length >= 1) {
-            console.log("Still 1 task in pipelne, checking again in 30s..");
+        if (tasks.length >= 10) {
+            console.log("Still 10 task in pipelne, checking again in 30s..");
         } else {
             console.log("Not enough tasks, creating new one..");
-            var createIps;
-
             // prepare an attacker file
             // (task scope / IPs to block)
-            createIps = spawn('python', ['createIPs.py', 1, 5]);
+            var createIps = spawn('python', ['createIPs.py', 1, 5]);
             createIps.stdout.on('data', function (data){
                 ipfs.files.add(new Buffer(data), (err, result) => {
                     if (!err) {
-                        /*
+                        // deterministic customer selection for testing
+                        //var target = customers[4]
+                        //var mitigator = customers[10]
+
                         // select random customers profile
                         var target = mitigator = new Customer({});
 
@@ -108,11 +109,7 @@ function replenishTasks() {
                             target = customers[Math.floor(Math.random()*customers.length)];
                             mitigator = customers[Math.floor(Math.random()*customers.length)];
                             console.log("Sampled new customers")
-                        }*/
-
-                        // deterministic customer selection for testing
-                        var target = customers[4]
-                        var mitigator = customers[10]
+                        }
 
                         console.log("Creating a new task with");
                         console.log(" >> Target:", target);
@@ -123,8 +120,8 @@ function replenishTasks() {
                             ctr.id.address,
                             target.addr,
                             mitigator.addr,
-                            4,// todo: randomize deadlines
-                            10,
+                            Math.floor(Math.random() * 20) + 3,
+                            Math.floor(Math.random() * 40) + 23,
                             web3.toWei(1, "ether"),
                             result[0].hash,
                             {from: target.addr, gas: GAS_EST});
