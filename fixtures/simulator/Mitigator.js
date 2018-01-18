@@ -150,6 +150,8 @@ class RationalMitigator extends SelfishMitigator {
                     tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
                     receipt = web3.eth.getTransactionReceiptMined(tx);
                 }
+            } else {
+                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
             }
             res(receipt);
         });

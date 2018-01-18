@@ -206,13 +206,13 @@ function watchEvents(_contract, _event) {
 
                             // if validation deadline expired,
                             // abort stuck tasks as "currentPlayer" player
-                            if (ctr.mitgn.started(task.id) && web3.eth.blockNumber > validationDeadline) {
+                            if (ctr.mitgn.started(task.id) && !ctr.mitgn.validated(task.id) && web3.eth.blockNumber > validationDeadline) {
                                 if (Object.getPrototypeOf(currentPlayer) instanceof Target.Target || ctr.mitgn.proofUploaded(task.id)) {
                                     // only abort as mitigator if proof uploded
                                     // always abort as target
                                     tx = ctr.mitgn.abort.sendTransaction(task.id, {from: currentPlayer.addr, gas: GAS_EST});
                                     await web3.eth.getTransactionReceiptMined(tx);
-                                    console.log(currentPlayer.constructor.name, "aborted task", task.id, "due to VALIDATION TIMEOUT");
+                                    console.log(currentPlayer.constructor.name, "tried to aborted the task", task.id, "due to VALIDATION TIMEOUT");
                                 }
                             }
 

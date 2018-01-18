@@ -57,7 +57,7 @@ class SatisfiedTarget extends SelfishTarget {
 
             var startTime = ctr.mitgn.getStartTime(_id).toNumber();
             var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_id).toNumber();
-            if (web3.eth.blockNumber > serviceDeadline) {
+            if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_id)) {
                 // always rate positively
                 var reputonHash = await new Promise((resolve, reject) => {
                     ipfs.files.add(new Buffer(`{
@@ -83,9 +83,11 @@ class SatisfiedTarget extends SelfishTarget {
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
 
                 // validate
-                console.log(this.constructor.name, "ACKNOWLEDGES task", _id, );
+                console.log(this.constructor.name, "ACKNOWLEDGES task", _id);
                 tx = ctr.mitgn.validateProof.sendTransaction(_id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
+            } else {
+                console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired or already validated.");
             }
 
             res(receipt);
@@ -130,9 +132,11 @@ class DissatisfiedTarget extends SelfishTarget {
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
 
                 // validate
-                console.log(this.constructor.name, "REJECTS task", _id, );
+                console.log(this.constructor.name, "REJECTS task", _id);
                 tx = ctr.mitgn.validateProof.sendTransaction(_id, false, ctr.rep.address, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
+            } else {
+                console.log(this.constructor.name, "not rating/validating task", _id, "because service deadline not yet expired");
             }
 
             res(receipt);
