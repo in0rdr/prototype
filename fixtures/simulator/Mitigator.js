@@ -23,7 +23,7 @@ class UndecidedMitigator extends Mitigator {
             var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);
         } else {
-            console.log(this.constructor.name, "NOT aborting task", _id);
+            console.log(this.constructor.name, "NOT aborting task", _id, "because NOT APPROVED YET");
             return Promise.resolve(false);
         }
     }
@@ -41,7 +41,7 @@ class LazyMitigator extends Mitigator {
             var tx = ctr.mitgn.approve.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);
         } else {
-            console.log(this.constructor.name, "NOT approving task", _id);
+            console.log(this.constructor.name, "NOT approving task", _id, "because ALREADY APPROVED");
             return Promise.resolve(false);
         }
     }
@@ -63,10 +63,12 @@ class SelfishMitigator extends LazyMitigator {
                         resolve(result[0].hash);
                     });
                 });
-                console.log(this.constructor.name, "uploading proof for task", _id);
+                console.log(this.constructor.name, "UPLOADING PROOF for task", _id);
                 console.log(this.constructor.name, "created IPFS proof:", proofHash);
                 var tx = ctr.mitgn.uploadProof.sendTransaction(_id, proofHash, {from: this.addr, gas: GAS_EST});
                 receipt = await web3.eth.getTransactionReceiptMined(tx);
+            } else {
+                console.log(this.constructor.name, "NOT uploading proof for task", _id, "because not started or already proved");
             }
             res(receipt);
         });
@@ -87,6 +89,8 @@ class RationalMitigator extends SelfishMitigator {
 
             // only advance after validation deadline expired
             if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
+                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
+
                 // fetch target rating
                 var targetRating;
 

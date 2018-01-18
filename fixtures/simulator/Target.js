@@ -22,7 +22,7 @@ class UndecidedTarget extends Target {
             var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);
         } else {
-            console.log(this.constructor.name, "NOT aborting task", _id);
+            console.log(this.constructor.name, "NOT aborting task", _id, "because NOT APPROVED YET");
             return Promise.resolve(false);
         }
     }
@@ -40,7 +40,7 @@ class SelfishTarget extends Target {
             var tx = ctr.mitgn.start.sendTransaction(_id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             return web3.eth.getTransactionReceiptMined(tx);
         } else {
-            console.log(this.constructor.name, "NOT starting task", _id);
+            console.log(this.constructor.name, "NOT starting task", _id, "because NOT APPROVED YET");
             return Promise.resolve(false);
         }
     }
