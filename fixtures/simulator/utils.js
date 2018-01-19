@@ -5,7 +5,7 @@ async function rate(_value, _raterAddr, _taskId, _assertion) {
             "reputons": [
              {
                "rater": "${_raterAddr}",
-               "assertion": ${_assertion},
+               "assertion": "${_assertion}",
                "rated": ${_taskId},
                "rating": ${_value},
                "sample-size": 1

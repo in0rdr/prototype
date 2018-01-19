@@ -82,53 +82,55 @@ new Promise(async (res) => {
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
-    //replenishTasks();
-    setInterval(replenishTasks, 30000);
+    replenishTasks();
 });
 
 function replenishTasks() {
-        if (tasks.length >= 10) {
-            console.log("Still 10 task in pipelne, checking again in 30s..");
-        } else {
-            console.log("Not enough tasks, creating new one..");
-            // prepare an attacker file
-            // (task scope / IPs to block)
-            var createIps = spawn('python', ['createIPs.py', 1, 5]);
-            createIps.stdout.on('data', function (data){
-                ipfs.files.add(new Buffer(data), (err, result) => {
-                    if (!err) {
-                        // deterministic customer selection for testing
-                        //var target = customers[4]
-                        //var mitigator = customers[10]
+    if (tasks.length >= 10) {
+        console.log("Still 10 task in pipelne, checking again in 30s..");
+    } else {
+        console.log("Not enough tasks, creating new one..");
+        // prepare an attacker file
+        // (task scope / IPs to block)
+        var createIps = spawn('python', ['createIPs.py', 1, 5]);
+        createIps.stdout.on('data', function (data){
+            ipfs.files.add(new Buffer(data), async (err, result) => {
+                if (!err) {
+                    // deterministic customer selection for testing
+                    //var target = customers[4]
+                    //var mitigator = customers[10]
 
-                        // select random customers profile
-                        var target = mitigator = new Customer({});
+                    // select random customers profile
+                    var target = mitigator = new Customer({});
 
-                        while (!(Object.getPrototypeOf(target) instanceof Target.Target
-                            && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
-                            target = customers[Math.floor(Math.random()*customers.length)];
-                            mitigator = customers[Math.floor(Math.random()*customers.length)];
-                            console.log("Sampled new customers")
-                        }
-
-                        console.log("Creating a new task with");
-                        console.log(" >> Target:", target);
-                        console.log(" >> Mitigator:", mitigator);
-
-                        // create a new task with the chosen customer strategy
-                        var tx = ctr.mitgn.newTask.sendTransaction(
-                            ctr.id.address,
-                            target.addr,
-                            mitigator.addr,
-                            Math.floor(Math.random() * 20) + 3,
-                            Math.floor(Math.random() * 40) + 23,
-                            web3.toWei(1, "ether"),
-                            result[0].hash,
-                            {from: target.addr, gas: GAS_EST});
+                    while (!(Object.getPrototypeOf(target) instanceof Target.Target
+                        && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
+                        target = customers[Math.floor(Math.random()*customers.length)];
+                        mitigator = customers[Math.floor(Math.random()*customers.length)];
+                        console.log("Sampled new customers")
                     }
-                });
+
+                    console.log("Creating a new task with");
+                    console.log(" >> Target:", target);
+                    console.log(" >> Mitigator:", mitigator);
+
+                    // create a new task with the chosen customer strategy
+                    var tx = ctr.mitgn.newTask.sendTransaction(
+                        ctr.id.address,
+                        target.addr,
+                        mitigator.addr,
+                        Math.floor(Math.random() * 20) + 3,
+                        Math.floor(Math.random() * 40) + 23,
+                        web3.toWei(1, "ether"),
+                        result[0].hash,
+                        {from: target.addr, gas: GAS_EST});
+
+                    await web3.eth.getTransactionReceiptMined(tx);
+                }
             });
-        }
+        });
+    }
+    setTimeout(replenishTasks, 30000);
 }
 
 async function createCustomers(_ctr, _n) {
