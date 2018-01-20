@@ -4,20 +4,85 @@ var Customer = require('./Customer.js');
 
 class Mitigator extends Customer {
     constructor(_options) {
-        super(_options)
+        super(_options);
+        this.nextMove = 'approve';
     }
-    advance() {}
+
+    async abort(_task) {
+        var receipt = Promise.resolve(false);
+        var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
+        var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
+
+        if (web3.eth.blockNumber > validationDeadline && ctr.mitgn.proofUploaded(_task.id)) {
+            tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+            console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts (validation timeout)");
+            receipt = await web3.eth.getTransactionReceiptMined(tx);
+        }
+
+        if (ctr.mitgn.aborted(_task.id))
+            this.nextMove = 'complete';
+        return receipt;
+    }
+
+    async approve(_task) {
+        var receipt = Promise.resolve(false);
+        if (!ctr.mitgn.approved(_task.id)) {
+            var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+            console.log("[", _task.id, "]", this.constructor.name, "\t approves");
+            receipt = await web3.eth.getTransactionReceiptMined(tx);
+        }
+
+        if (ctr.mitgn.approved(_task.id))
+            this.nextMove = 'uploadProof';
+        return receipt;
+    }
+
+    async uploadProof(_task) {
+        var receipt = Promise.resolve(false);
+        if (ctr.mitgn.started(_task.id) && !ctr.mitgn.proofUploaded(_task.id)) {
+            var proofHash = await new Promise((resolve, reject) => {
+                ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
+                    if (err) reject(err);
+                    resolve(result[0].hash);
+                });
+            });
+            console.log("[", _task.id, "]", this.constructor.name, "\t uploads proof \t", proofHash);
+            var tx = ctr.mitgn.uploadProof.sendTransaction(_task.id, proofHash, {from: this.addr, gas: GAS_EST});
+            receipt = await web3.eth.getTransactionReceiptMined(tx);
+        }
+
+        if (ctr.mitgn.proofUploaded(_task.id))
+            this.nextMove = 'rate';
+        return receipt;
+    }
+
+    async rate(_task, rating) {
+        var receipt = Promise.resolve(false);
+        var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
+        var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
+
+        if (ctr.mitgn.started(_task.id)
+            && !ctr.rep.mitigatorRated(_task.id)
+            && web3.eth.blockNumber > validationDeadline) {
+            receipt = await utils.rate(rating, this, _task.id, "target-ok");
+        }
+
+        if (ctr.rep.mitigatorRated(_task.id))
+            this.nextMove = 'complete';
+        return receipt;
+    }
 }
 
 class UndecidedMitigator extends Mitigator {
     constructor(_options) {
         super(_options);
+        this.nextMove = 'abort';
     }
 
-    advance(_id) {
-        // abort right away at init
-        console.log(this.constructor.name, "aborting task", _id);
-        var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
+    abort(_task) {
+        tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+        console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts");
+        this.nextMove = 'complete';
         return web3.eth.getTransactionReceiptMined(tx);
     }
 }
@@ -27,164 +92,86 @@ class LazyMitigator extends Mitigator {
         super(_options);
     }
 
-    advance(_id) {
-        if (!ctr.mitgn.approved(_id)) {
-            // approve task
-            console.log(this.constructor.name, "approving task", _id);
-            var tx = ctr.mitgn.approve.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
-            return web3.eth.getTransactionReceiptMined(tx);
-        } else {
-            console.log(this.constructor.name, "NOT approving task", _id, "because ALREADY APPROVED");
-            return Promise.resolve(false);
-        }
+    uploadProof(_task) {
+        this.nextMove = 'complete';
+        return Promise.resolve(false);
     }
 }
 
-class SelfishMitigator extends LazyMitigator {
+class SelfishMitigator extends Mitigator {
     constructor(_options) {
         super(_options);
     }
 
-    advance(_id) {
-        return new Promise(async (res, rej) => {
-            var receipt = await super.advance(_id);
-            if (ctr.mitgn.started(_id) && !ctr.mitgn.proofUploaded(_id)) {
-                // upload proof
-                var proofHash = await new Promise((resolve, reject) => {
-                    ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
-                        if (err) reject(err);
-                        resolve(result[0].hash);
-                    });
+    rate(_task) {
+        this.nextMove = 'complete';
+        return Promise.resolve(false);
+    }
+}
+
+class RationalMitigator extends Mitigator {
+    constructor(_options) {
+        super(_options);
+    }
+
+    async rate(_task) {
+        // fetch target rating
+        var targetRating;
+
+        try {
+            var repHash = ctr.rep.getReputon(_task.id, 0);
+
+            var reputon = await new Promise((resolve, reject) => {
+                ipfs.files.cat(`/ipfs/${repHash}`, (err, file) => {
+                    if (err) reject(err);
+                    resolve(JSON.parse(file.toString()));
                 });
-                console.log(this.constructor.name, "UPLOADING PROOF for task", _id);
-                console.log(this.constructor.name, "created IPFS proof:", proofHash);
-                var tx = ctr.mitgn.uploadProof.sendTransaction(_id, proofHash, {from: this.addr, gas: GAS_EST});
-                receipt = await web3.eth.getTransactionReceiptMined(tx);
-            } else {
-                console.log(this.constructor.name, "NOT uploading proof for task", _id, "because not started or already proved");
-            }
-            res(receipt);
-        });
+            });
+            targetRating = reputon.reputons[0].rating;
+        } catch (e) {
+            // assume a malicous rating if not formatted
+            // as reputon media type or if attack target did not rate
+            targetRating = 0;
+        }
+
+        console.log("[", _task.id, "]", this.constructor.name, "\t reads rating: \t", targetRating);
+
+        // rate according to T's expectation
+        var rating;
+        if (ctr.mitgn.acknowledged(_task.id)) {
+            rating = 1;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target acknowledged)");
+        } else if (ctr.mitgn.rejected(_task.id)) {
+            rating = 0;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target rejected)");
+        } else if (!ctr.mitgn.validated(_task.id) && targetRating === 0) {
+            rating = 0;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(no validation, bad rating received)");
+        } else if (!ctr.mitgn.validated(_task.id) && targetRating === 1) {
+            rating = 1;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(no validation, good rating received)");
+        }
+        return super.rate(_task, rating);
     }
 }
 
-class RationalMitigator extends SelfishMitigator {
+class AltruisticMitigator extends Mitigator {
     constructor(_options) {
         super(_options);
     }
 
-    advance(_id) {
-        return new Promise(async (res, rej) => {
-            var receipt = await super.advance(_id);
-
-            var startTime = ctr.mitgn.getStartTime(_id);
-            var validationDeadline = ctr.mitgn.getValidationDeadline(_id);
-
-            // only advance after validation deadline expired
-            if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
-                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
-
-                // fetch target rating
-                var targetRating;
-
-                try {
-                    var repHash = ctr.rep.getReputon(_id, 0);
-
-                    var reputon = await new Promise((resolve, reject) => {
-                        ipfs.files.cat(`/ipfs/${repHash}`, (err, file) => {
-                            if (err) reject(err);
-                            resolve(JSON.parse(file.toString()));
-                        });
-                    });
-                    targetRating = reputon.reputons[0].rating;
-                } catch (e) {
-                    // assume a malicous rating if not formatted
-                    // as reputon media type or if attack target did not rate
-                    targetRating = 0;
-                }
-
-                console.log(this.constructor.name, "reads rating from T as", targetRating, "for task", _id);
-
-                // rate according to T's expectation
-                var rating;
-                if (ctr.mitgn.acknowledged(_id)) {
-                    rating = 1;
-                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target acknowledged");
-                } else if (ctr.mitgn.rejected(_id)) {
-                    rating = 0;
-                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target rejected");
-                } else if (!ctr.mitgn.validated(_id) && targetRating === 0) {
-                    rating = 0;
-                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target didn't validate and rated (-)");
-                } else if (!ctr.mitgn.validated(_id) && targetRating === 1) {
-                    rating = 1;
-                    console.log(this.constructor.name, "chooses rating", rating, "for task", _id, "because target didn't validate but rated (+)");
-                }
-                receipt = await utils.rate(rating, ctr.mitgn.getMitigator(_id), _id, "target-ok");
-
-                // if this was a selfish target,
-                // abort task to claim the price
-                if (ctr.mitgn.proofUploaded(_id)) {
-                    var tx = ctr.mitgn.abort.sendTransaction(_id, {from: this.addr, gas: GAS_EST});
-                    receipt = web3.eth.getTransactionReceiptMined(tx);
-                }
-            } else {
-                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
-            }
-            res(receipt);
-        });
+    rate(_task) {
+        return super.rate(_task, 1);
     }
 }
 
-class AltruisticMitigator extends SelfishMitigator {
+class MaliciousMitigator extends Mitigator {
     constructor(_options) {
         super(_options);
     }
 
-    advance(_id) {
-        return new Promise(async (res, rej) => {
-            var receipt = await super.advance(_id);
-
-            var startTime = ctr.mitgn.getStartTime(_id);
-            var validationDeadline = ctr.mitgn.getValidationDeadline(_id);
-
-            // only advance after validation deadline expired
-            if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
-                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
-
-                // always rate positively
-                receipt = await utils.rate(1, ctr.mitgn.getMitigator(_id), _id, "target-ok");
-            } else {
-                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
-            }
-            res(receipt);
-        });
-    }
-}
-
-class MaliciousMitigator extends SelfishMitigator {
-    constructor(_options) {
-        super(_options);
-    }
-
-    advance(_id) {
-        return new Promise(async (res, rej) => {
-            var receipt = await super.advance(_id);
-
-            var startTime = ctr.mitgn.getStartTime(_id);
-            var validationDeadline = ctr.mitgn.getValidationDeadline(_id);
-
-            // only advance after validation deadline expired
-            if (ctr.mitgn.started(_id) && !ctr.rep.mitigatorRated(_id) && web3.eth.blockNumber > startTime.plus(validationDeadline).toNumber()) {
-                console.log(this.constructor.name, "is advancing because VALIDATION DEADLINE expired");
-
-                // always rate negatively
-                receipt = await utils.rate(0, ctr.mitgn.getMitigator(_id), _id, "target-ok");
-            } else {
-                console.log(this.constructor.name, "not rating task", _id, "because not started, already rated or validation deadline not yet expired");
-            }
-            res(receipt);
-        });
+    rate(_task) {
+        return super.rate(_task, 0);
     }
 }
 

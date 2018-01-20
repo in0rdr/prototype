@@ -1,10 +1,10 @@
-async function rate(_value, _raterAddr, _taskId, _assertion) {
+async function rate(_value, _rater, _taskId, _assertion) {
     var reputonHash = await new Promise((resolve, reject) => {
         ipfs.files.add(new Buffer(`{
             "application": "mitigation",
             "reputons": [
              {
-               "rater": "${_raterAddr}",
+               "rater": "${_rater.addr}",
                "assertion": "${_assertion}",
                "rated": ${_taskId},
                "rating": ${_value},
@@ -17,10 +17,9 @@ async function rate(_value, _raterAddr, _taskId, _assertion) {
         });
     });
 
-    console.log(this.constructor.name, "rates task", _taskId, (_value === 1) ? "POSITIVELY (+)" : "NEGATIVELY (-)");
-    console.log(this.constructor.name, "created IPFS reputon:", reputonHash);
-    var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _raterAddr, gas: GAS_EST});
-    return await web3.eth.getTransactionReceiptMined(tx);
+    console.log("[", _task.id, "]", _rater.constructor.name, "\t rates\t", (_value === 1) ? "(+)" : "(-)", reputonHash);
+    var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _rater.addr, gas: GAS_EST});
+    return web3.eth.getTransactionReceiptMined(tx);
 }
 
 function enableLogger() {

@@ -23,12 +23,11 @@ var mitigationAbi = JSON.parse(contracts.mitigation.interface);
 var repAbi = JSON.parse(contracts.reputation.interface);
 
 var Customer = require('./Customer.js');
-var Task = require('./Task.js');
-var Mitigator, Target;
+var Mitigator, Target, Task;
 var customers = [];
 
 var tasks = [];
-var completed_tasks = [];
+var completedTasks = [];
 
 new Promise(async (res) => {
     // deploy contracts
@@ -50,9 +49,10 @@ new Promise(async (res) => {
     console.log(" >> Set up TaskAborted filter");
     //custFilter.stopWatching();
 
-    // setup simulation peers
+    // setup simulation peers and task
     Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
     Target = require('./Target.js')(web3, ctr, GAS_EST);
+    Task = require('./Task.js')(web3, ctr, GAS_EST);
 
     // setup unhandled promise exception logger
     utils = require('./utils.js')(web3, ctr, GAS_EST);
@@ -83,6 +83,7 @@ new Promise(async (res) => {
 }).then(() => {
     // create new tasks if needed
     replenishTasks();
+    //setTimeout(replenishTasks, 30000);
 });
 
 function replenishTasks() {
@@ -96,23 +97,55 @@ function replenishTasks() {
         createIps.stdout.on('data', function (data){
             ipfs.files.add(new Buffer(data), async (err, result) => {
                 if (!err) {
+
+
+                    // test all possible combinations of target/mitigator
+                    /*var targets = customers.slice(1, 5);
+                    var mitigators = customers.slice(6,11);
+                    var tx;
+                    for (t of targets) {
+                        for (m of mitigators) {
+                            tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: t.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+                            await web3.eth.getTransactionReceiptMined(tx);
+                            tx = ctr.mitgn.newTask.sendTransaction(
+                                ctr.id.address,
+                                t.addr,
+                                m.addr,
+                                Math.floor(Math.random() * 20) + 3,
+                                Math.floor(Math.random() * 40) + 23,
+                                web3.toWei(1, "ether"),
+                                result[0].hash,
+                                {from: t.addr, gas: GAS_EST});
+
+                            await web3.eth.getTransactionReceiptMined(tx);
+                        }
+                    }*/
+
+
+
+
+
                     // deterministic customer selection for testing
-                    //var target = customers[4]
-                    //var mitigator = customers[10]
+                    var target = customers[2]
+                    var mitigator = customers[7]
 
                     // select random customers profile
-                    var target = mitigator = new Customer({});
+                    /*var target = mitigator = new Customer({});
 
                     while (!(Object.getPrototypeOf(target) instanceof Target.Target
                         && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
                         target = customers[Math.floor(Math.random()*customers.length)];
                         mitigator = customers[Math.floor(Math.random()*customers.length)];
                         console.log("Sampled new customers")
-                    }
+                    }*/
+
+                    // fund target
+                    var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+                    await web3.eth.getTransactionReceiptMined(tx);
 
                     console.log("Creating a new task with");
-                    console.log(" >> Target:", target);
-                    console.log(" >> Mitigator:", mitigator);
+                    console.log(" - Target:", target);
+                    console.log(" - Mitigator:", mitigator);
 
                     // create a new task with the chosen customer strategy
                     var tx = ctr.mitgn.newTask.sendTransaction(
@@ -130,7 +163,6 @@ function replenishTasks() {
             });
         });
     }
-    setTimeout(replenishTasks, 30000);
 }
 
 async function createCustomers(_ctr, _n) {
@@ -167,63 +199,40 @@ function watchEvents(_contract, _event) {
                 switch (_event) {
                     case "TaskCreated":
                         // add new task to the pool of all tasks
-                        var task = new Task(result.args._taskId.toNumber(),
+                        var task = new Task.Task(result.args._taskId.toNumber(),
                             customerWithAddr(result.args._target),
                             customerWithAddr(result.args._mitigator));
                         tasks.push(task);
 
-                        // advance task while active
-                        // a task is active as long as:
-                        //  (1) not yet aborted
-                        //  (2) no final mitigator rating
-                        var currentPlayer, startTime, serviceDeadline, validationDeadline;
-                        while (!ctr.mitgn.aborted(task.id) ? !ctr.rep.mitigatorRated(task.id) : false ) {
-                            currentPlayer = task.next;
-
-                            console.log("----------------------------------------");
-                            console.log(" Next move");
-                            console.log("  - Profile:", currentPlayer.constructor.name);
-                            console.log("  - Time:");
-                            console.log("    - Block:", web3.eth.blockNumber);
-                            console.log("    - Start:", startTime);
-                            console.log("    - Service:", serviceDeadline);
-                            console.log("    - Validation:", validationDeadline);
-
-                            await task.advance();
+                        var move, currentPlayer, startTime, serviceDeadline, validationDeadline;
+                        while (true) {
+                            currentPlayer = task.nextCustomer;
 
                             startTime = ctr.mitgn.getStartTime(task.id).toNumber();
                             serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
                             validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
 
-                            // if validation deadline expired,
-                            // abort stuck tasks as "currentPlayer" player
-                            if (ctr.mitgn.started(task.id) && !ctr.mitgn.validated(task.id) && web3.eth.blockNumber > validationDeadline) {
-                                if (Object.getPrototypeOf(currentPlayer) instanceof Target.Target || ctr.mitgn.proofUploaded(task.id)) {
-                                    // only abort as mitigator if proof uploded
-                                    // always abort as target
-                                    tx = ctr.mitgn.abort.sendTransaction(task.id, {from: currentPlayer.addr, gas: GAS_EST});
-                                    await web3.eth.getTransactionReceiptMined(tx);
-                                    console.log(currentPlayer.constructor.name, "tried to aborted the task", task.id, "due to VALIDATION TIMEOUT");
-                                }
+                            console.log("----------------------------------------");
+                            console.log(" Task", task.id, ", next move");
+                            console.log("  - Profile:\t", currentPlayer.constructor.name);
+                            console.log("  - Move:\t", currentPlayer.nextMove);
+                            console.log("  - Time:\t");
+                            console.log("    - Block:\t\t", web3.eth.blockNumber);
+                            console.log("    - Start:\t\t", startTime);
+                            console.log("    - Service:\t\t", serviceDeadline);
+                            console.log("    - Validation:\t\t", validationDeadline);
+
+                            // todo: better advance a random task
+                            move = await task.advance(tasks, completedTasks);
+                            if (typeof move.completedTasks !== 'undefined') {
+                                break;
                             }
-
-                            console.log(currentPlayer.constructor.name, "advanced task", task.id);
                         }
 
-                        console.log("----------------------------------------");
-                        console.log("Task", task.id, "completed");
-
-                        // mark task inactive
-                        completed_tasks.push(task);
-                        // remove from active task list
-                        var index = tasks.indexOf(task);
-                        if (index > -1) {
-                            tasks.splice(index, 1);
-                        }
-
-                        console.log("Inactive tasks:", completed_tasks);
+                        completedTasks = move.completedTasks;
+                        tasks = move.activeTasks;
+                        console.log("Completed tasks:", completedTasks);
                         console.log("Remaining active tasks:", tasks);
-
                         break;
 
                     case "TaskAborted":
