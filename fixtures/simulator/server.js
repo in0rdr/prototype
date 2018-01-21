@@ -220,7 +220,7 @@ function watchEvents(_contract, _event) {
                             console.log("    - Block:\t\t", web3.eth.blockNumber);
                             console.log("    - Start:\t\t", startTime);
                             console.log("    - Service:\t\t", serviceDeadline);
-                            console.log("    - Validation:\t\t", validationDeadline);
+                            console.log("    - Validation:\t", validationDeadline);
 
                             // todo: better advance a random task
                             move = await task.advance(tasks, completedTasks);
