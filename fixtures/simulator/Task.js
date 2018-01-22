@@ -12,7 +12,7 @@ class Task {
     advance(_activeTasks, _completedTasks) {
         var result = this.nextCustomer.advance(this, _activeTasks, _completedTasks);
         if (!( Object.getPrototypeOf(this.nextCustomer) instanceof Target.Target
-               && this.nextCustomer.nextMove === 'validate' )) {
+               && this.nextCustomer.nextMove[this.id] === 'validate' )) {
             // allow target to rate and validate seamlessly
             this.nextCustomer = (this.nextCustomer == this.mit) ? this.tar : this.mit;
         }

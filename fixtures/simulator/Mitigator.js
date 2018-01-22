@@ -5,40 +5,31 @@ var Customer = require('./Customer.js');
 class Mitigator extends Customer {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'approve';
     }
 
-    async abort(_task) {
-        var receipt = Promise.resolve(false);
-        var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
-        var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
+    init(_task) {
+        this.nextMove[_task.id] = 'approve';
+        return Promise.resolve({});
+    }
 
-        if (web3.eth.blockNumber > validationDeadline && ctr.mitgn.proofUploaded(_task.id)) {
-            tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-            console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts (validation timeout)");
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
-        }
-
-        if (ctr.mitgn.aborted(_task.id))
-            this.nextMove = 'complete';
-        return receipt;
+    abort(_task) {
+        return super.abort(_task.id, ctr.mitgn, web3, GAS_EST);
     }
 
     async approve(_task) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         if (!ctr.mitgn.approved(_task.id)) {
             var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
             console.log("[", _task.id, "]", this.constructor.name, "\t approves");
             receipt = await web3.eth.getTransactionReceiptMined(tx);
+            this.nextMove[_task.id] = 'uploadProof';
         }
 
-        if (ctr.mitgn.approved(_task.id))
-            this.nextMove = 'uploadProof';
         return receipt;
     }
 
     async uploadProof(_task) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         if (ctr.mitgn.started(_task.id) && !ctr.mitgn.proofUploaded(_task.id)) {
             var proofHash = await new Promise((resolve, reject) => {
                 ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
@@ -49,15 +40,14 @@ class Mitigator extends Customer {
             console.log("[", _task.id, "]", this.constructor.name, "\t uploads proof \t", proofHash);
             var tx = ctr.mitgn.uploadProof.sendTransaction(_task.id, proofHash, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
+            this.nextMove[_task.id] = 'rate';
         }
 
-        if (ctr.mitgn.proofUploaded(_task.id))
-            this.nextMove = 'rate';
         return receipt;
     }
 
     async rate(_task, rating) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
 
@@ -65,10 +55,9 @@ class Mitigator extends Customer {
             && !ctr.rep.mitigatorRated(_task.id)
             && web3.eth.blockNumber > validationDeadline) {
             receipt = await utils.rate(rating, this, _task.id, "target-ok");
+            this.nextMove[_task.id] = ctr.mitgn.validated(_task.id) ? 'complete' : 'abort';
         }
 
-        if (ctr.rep.mitigatorRated(_task.id))
-            this.nextMove = 'complete';
         return receipt;
     }
 }
@@ -76,13 +65,17 @@ class Mitigator extends Customer {
 class UndecidedMitigator extends Mitigator {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'abort';
+    }
+
+    init(_task) {
+        this.nextMove[_task.id] = 'abort';
+        return Promise.resolve({});
     }
 
     abort(_task) {
-        tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+        var tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
         console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts");
-        this.nextMove = 'complete';
+        this.nextMove[_task.id] = 'complete';
         return web3.eth.getTransactionReceiptMined(tx);
     }
 }
@@ -93,8 +86,8 @@ class LazyMitigator extends Mitigator {
     }
 
     uploadProof(_task) {
-        this.nextMove = 'complete';
-        return Promise.resolve(false);
+        this.nextMove[_task.id] = 'complete';
+        return Promise.resolve({});
     }
 }
 
@@ -104,8 +97,8 @@ class SelfishMitigator extends Mitigator {
     }
 
     rate(_task) {
-        this.nextMove = 'complete';
-        return Promise.resolve(false);
+        this.nextMove[_task.id] = 'complete';
+        return Promise.resolve({});
     }
 }
 

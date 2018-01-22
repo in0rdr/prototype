@@ -17,7 +17,7 @@ async function rate(_value, _rater, _taskId, _assertion) {
         });
     });
 
-    console.log("[", _task.id, "]", _rater.constructor.name, "\t rates\t", (_value === 1) ? "(+)" : "(-)", reputonHash);
+    console.log("[", _taskId, "]", _rater.constructor.name, "\t rates\t", (_value === 1) ? "(+)" : "(-)", reputonHash);
     var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _rater.addr, gas: GAS_EST});
     return web3.eth.getTransactionReceiptMined(tx);
 }

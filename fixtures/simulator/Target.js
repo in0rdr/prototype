@@ -5,66 +5,55 @@ var Customer = require('./Customer.js');
 class Target extends Customer {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'start';
     }
 
-    async abort(_task) {
-        var receipt = Promise.resolve(false);
-        var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
-        var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
+    init(_task) {
+        this.nextMove[_task.id] = 'start';
+        return Promise.resolve({});
+    }
 
-        if (web3.eth.blockNumber > validationDeadline && !ctr.mitgn.proofUploaded(_task.id)) {
-            tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-            console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts (validation timeout)");
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
-        }
-
-        if (ctr.mitgn.aborted(_task.id))
-            this.nextMove = 'complete';
-        return receipt;
+    abort(_task) {
+        return super.abort(_task.id, ctr.mitgn, web3, GAS_EST);
     }
 
     async start(_task) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         if (ctr.mitgn.approved(_task.id) && !ctr.mitgn.started(_task.id)) {
             console.log("[", _task.id, "]", this.constructor.name, "starts");
             var tx = ctr.mitgn.start.sendTransaction(_task.id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
+            this.nextMove[_task.id] = 'rate';
         }
 
-        if (ctr.mitgn.started(_task.id))
-            this.nextMove = 'rate';
         return receipt;
     }
 
     async rate(_task, _rating) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
-        var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
+        var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
 
         if (ctr.mitgn.started(_task.id)
             && !ctr.rep.attackTargetRated(_task.id)
-            && web3.eth.blockNumber > validationDeadline) {
+            && web3.eth.blockNumber > serviceDeadline) {
             receipt = await utils.rate(_rating, this, _task.id, "proof-ok");
+            this.nextMove[_task.id] = 'validate';
         }
 
-        if (ctr.rep.attackTargetRated(_task.id))
-            this.nextMove = 'validate';
         return receipt;
     }
 
     async validate(_task, _response) {
-        var receipt = Promise.resolve(false);
+        var receipt = Promise.resolve({});
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
         if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_task.id)) {
             console.log("[", _task.id, "]", this.constructor.name, "\t acknowledges");
             var tx = ctr.mitgn.validateProof.sendTransaction(_task.id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
+            this.nextMove[_task.id] = ctr.mitgn.proofUploaded(_task.id) ? 'complete' : 'abort';
         }
 
-        if (ctr.rep.validated(_task.id))
-            this.nextMove = 'abort';
         return receipt;
     }
 }
@@ -72,13 +61,17 @@ class Target extends Customer {
 class UndecidedTarget extends Target {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'abort';
+    }
+
+    init(_task) {
+        this.nextMove[_task.id] = 'abort';
+        return Promise.resolve({});
     }
 
     abort(_task) {
-        tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+        var tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
         console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts");
-        this.nextMove = 'complete';
+        this.nextMove[_task.id] = 'complete';
         return web3.eth.getTransactionReceiptMined(tx);
     }
 }
@@ -86,24 +79,22 @@ class UndecidedTarget extends Target {
 class SelfishTarget extends Target {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'start';
     }
 
     rate(_task) {
-        this.nextMove = 'complete';
-        return Promise.resolve(false);
+        this.nextMove[_task.id] = 'complete';
+        return Promise.resolve({});
     }
 
     validate(_task) {
-        this.nextMove = 'complete';
-        return Promise.resolve(false);
+        this.nextMove[_task.id] = 'complete';
+        return Promise.resolve({});
     }
 }
 
 class SatisfiedTarget extends Target {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'start';
     }
 
     rate(_task) {
@@ -118,7 +109,6 @@ class SatisfiedTarget extends Target {
 class DissatisfiedTarget extends Target {
     constructor(_options) {
         super(_options);
-        this.nextMove = 'start';
     }
 
     rate(_task) {
@@ -134,7 +124,6 @@ class IrrationalTarget extends Target {
     constructor(_options) {
         super(_options);
         this.rating = Math.floor(Math.random() * 2);
-        this.nextMove = 'start';
     }
 
     rate(_task) {

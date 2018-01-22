@@ -100,7 +100,7 @@ function replenishTasks() {
 
 
                     // test all possible combinations of target/mitigator
-                    /*var targets = customers.slice(1, 5);
+                    var targets = customers.slice(1, 5);
                     var mitigators = customers.slice(6,11);
                     var tx;
                     for (t of targets) {
@@ -119,15 +119,15 @@ function replenishTasks() {
 
                             await web3.eth.getTransactionReceiptMined(tx);
                         }
-                    }*/
+                    }
 
 
 
 
 
                     // deterministic customer selection for testing
-                    var target = customers[2]
-                    var mitigator = customers[7]
+                    //var target = customers[2]
+                    //var mitigator = customers[7]
 
                     // select random customers profile
                     /*var target = mitigator = new Customer({});
@@ -140,7 +140,7 @@ function replenishTasks() {
                     }*/
 
                     // fund target
-                    var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+                    /*var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
                     await web3.eth.getTransactionReceiptMined(tx);
 
                     console.log("Creating a new task with");
@@ -158,7 +158,7 @@ function replenishTasks() {
                         result[0].hash,
                         {from: target.addr, gas: GAS_EST});
 
-                    await web3.eth.getTransactionReceiptMined(tx);
+                    await web3.eth.getTransactionReceiptMined(tx);*/
                 }
             });
         });
