@@ -26,6 +26,10 @@ contract Reputation {
         return (reputons[interactions[_id][1]] != 0);
     }
 
+    function reputonCount() constant public returns (uint) {
+        return reputons.length;
+    }
+
     function getReputon(uint _id, uint _peer) constant public returns (string) {
         require(_peer <= 1);
         return interactions[_id][_peer];

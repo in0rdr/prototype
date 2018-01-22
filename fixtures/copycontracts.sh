@@ -1,7 +1,12 @@
 #!/bin/sh
 
-CONTRACT_DIR="simulator/contracts/"
+CONTRACT_DIRS=("simulator/contracts/" "api/contracts/")
 
-rm -rf CONTRACT_DIR
-mkdir -p $CONTRACT_DIR
-cp -r ../contracts/* $CONTRACT_DIR
+for i in "${CONTRACT_DIRS[@]}"
+do
+    dir="${i}"
+    rm -rf $dir
+    mkdir -p $dir
+    cp -r ../contracts/* $dir
+    echo "Copied smart contracts into '$dir'"
+done
