@@ -9,22 +9,10 @@ RUN \
   #rm -rf /go-ethereum && rm -rf /var/cache/apk/*
 
 ENV PATH="${PATH}:/go-ethereum/build/bin/"
+
 ADD genesis.json /genesis.json
+RUN geth init genesis.json
 
-# create two accounts
-RUN echo 1234 > pwd.txt
-RUN geth --password pwd.txt account new > acc0.txt
-RUN geth --password pwd.txt account new > acc1.txt
-
-# append password for unlocking two accounts
-RUN echo "1234" >> pwd.txt
-
-# init geth with the two funded accounts
-ADD initgeth.sh /initgeth.sh
-RUN chmod +x /initgeth.sh
-RUN ./initgeth.sh $(cat acc0.txt | awk '{print substr ($2, 2, 40)}') $(cat acc1.txt | awk '{print substr ($2, 2, 40)}')
-
-# unlock accounts and run
 ADD rungeth.sh /rungeth.sh
 RUN chmod +x /rungeth.sh
 

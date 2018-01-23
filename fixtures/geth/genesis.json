@@ -5,10 +5,7 @@
         "eip155Block": 0,
         "eip158Block": 0
     },
-  "alloc"      : {
-        "0xADDR0": { "balance": "1000000000000000000" },
-        "0xADDR1": { "balance": "2000000000000000000" }
-  },
+  "alloc"      : {},
   "coinbase"   : "0x0000000000000000000000000000000000000000",
   "difficulty" : "0x20000",
   "extraData"  : "",
