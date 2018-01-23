@@ -91,6 +91,7 @@ function down(){
 }
 
 function sim_start(){
+  docker run -d --name=$IPFS ipfs/go-ipfs
   docker run -d --name=$BOOTNODE prototype/bootnode:latest
 
   # get bootnode enode
