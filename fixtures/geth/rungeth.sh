@@ -2,16 +2,14 @@
 
 #--nodiscover
 
-if [ "$1" -eq 1 ]
+if [ -z "$1" ]
 then
  geth --fast --maxpeers 1 \
  --networkid 4 --verbosity 6 \
- --rpccorsdomain "*" --rpc --rpcport 8545 --rpcaddr "0.0.0.0" --rpcapi="eth,net,web3,admin,personal" \
- --mine --minerthreads=1 --etherbase=0 \
- --bootnodes "$2"
+ --rpccorsdomain "*" --rpc --rpcport 8545 --rpcaddr "0.0.0.0" --rpcapi="eth,net,web3,admin,personal"
 else
  geth --fast --maxpeers 1 \
  --networkid 4 --verbosity 6 \
  --rpccorsdomain "*" --rpc --rpcport 8545 --rpcaddr "0.0.0.0" --rpcapi="eth,net,web3,admin,personal" \
- --bootnodes "$2"
+ --bootnodes "$1"
 fi

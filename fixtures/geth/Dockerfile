@@ -9,8 +9,9 @@ RUN \
   #rm -rf /go-ethereum && rm -rf /var/cache/apk/*
 
 ENV PATH="${PATH}:/go-ethereum/build/bin/"
-
 ADD genesis.json /genesis.json
+
+# init geth
 RUN geth init genesis.json
 
 ADD rungeth.sh /rungeth.sh
