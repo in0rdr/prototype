@@ -11,7 +11,7 @@ RUN \
 ENV PATH="${PATH}:/go-ethereum/build/bin/"
 RUN bootnode -genkey boot.key
 
-EXPOSE 30301/udp
+EXPOSE 30301 30301/udp
 
 CMD ["bootnode", "-nodekey=boot.key", "-verbosity=9"]
 

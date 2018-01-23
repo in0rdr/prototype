@@ -9,16 +9,12 @@ RUN \
   #rm -rf /go-ethereum && rm -rf /var/cache/apk/*
 
 ENV PATH="${PATH}:/go-ethereum/build/bin/"
-ADD genesis.json /genesis.json
-
-# init geth
-RUN geth init genesis.json
 
 ADD rungeth.sh /rungeth.sh
 RUN chmod +x /rungeth.sh
 
 EXPOSE 8545
-EXPOSE 30303 30303/udp 30304/udp
+EXPOSE 30303 30303/udp
 
-ENTRYPOINT ["./rungeth.sh"]
+ENTRYPOINT ["sh", "-c", "geth init genesis.json && ./rungeth.sh"]
 

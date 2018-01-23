@@ -68,8 +68,8 @@ function up(){
   done
 
   docker run -d -p 8545:8545/tcp --name=$PEER1 prototype/geth-miner:latest $bootnode
-  docker exec prototype_peer1 sh -c "cat genesis.json" > geth/genesis.json
-  docker run -d --name=$PEER2 prototype/geth:latest $bootnode
+  docker exec $PEER1 sh -c "cat genesis.json" > geth/genesis.json
+  docker run -d -v $(pwd)/geth/genesis.json:/genesis.json --name=$PEER2 prototype/geth:latest $bootnode
 
   # deploy the simulator
   sleep 3
@@ -101,8 +101,8 @@ function sim_start(){
   done
 
   docker run -d -p 8545:8545/tcp --name=$PEER1 prototype/geth-miner:latest $bootnode
-  docker exec prototype_peer1 sh -c "cat genesis.json" > geth/genesis.json
-  docker run -d --name=$PEER2 prototype/geth:latest $bootnode
+  docker exec $PEER1 sh -c "cat genesis.json" > geth/genesis.json
+  docker run -d -v $(pwd)/geth/genesis.json:/genesis.json --name=$PEER2 prototype/geth:latest $bootnode
 
   # deploy the simulator
   sleep 3
