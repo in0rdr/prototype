@@ -29,7 +29,7 @@ ADD rungeth.sh /rungeth.sh
 RUN chmod +x /rungeth.sh
 
 EXPOSE 8545
-EXPOSE 30303/udp
+EXPOSE 30303 30303/udp 30304/udp
 
 ENTRYPOINT ["./rungeth.sh"]
 

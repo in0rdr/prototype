@@ -13,5 +13,5 @@ RUN bootnode -genkey boot.key
 
 EXPOSE 30301/udp
 
-CMD ["bootnode", "-nodekey=boot.key", "-verbosity=9", "-netrestrict=172.17.0.0/8"]
+CMD ["bootnode", "-nodekey=boot.key", "-verbosity=9"]
 
