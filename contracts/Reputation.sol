@@ -9,6 +9,7 @@ contract Reputation {
     // detect duplicate claims
     // and register claim owners
     mapping(string => address) reputons;
+    uint256 public reputonCount;
 
     // interaction => reputon IPFS hash
     // reputons[i][0] is claim of attack target about mitigator
@@ -24,10 +25,6 @@ contract Reputation {
 
     function mitigatorRated(uint _id) constant public returns (bool) {
         return (reputons[interactions[_id][1]] != 0);
-    }
-
-    function reputonCount() constant public returns (uint) {
-        return reputons.length;
     }
 
     function getReputon(uint _id, uint _peer) constant public returns (string) {
@@ -54,11 +51,13 @@ contract Reputation {
             require(block.number <= Mitigation(_mitigation).getStartTime(_id) + Mitigation(_mitigation).getValidationDeadline(_id));
             reputons[_reputon] = msg.sender;
             interactions[_id][0] = _reputon;
+            reputonCount++;
         } else if (msg.sender == mitigatorAddr) {
             require(!mitigatorRated(_id));
             require(block.number > Mitigation(_mitigation).getStartTime(_id) + Mitigation(_mitigation).getValidationDeadline(_id));
             reputons[_reputon] = msg.sender;
             interactions[_id][1] = _reputon;
+            reputonCount++;
         }
     }
 
