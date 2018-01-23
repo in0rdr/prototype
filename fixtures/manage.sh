@@ -47,6 +47,7 @@ function build(){
   docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
+  docker build -t prototype/geth-miner:latest geth-miner
   docker build -t prototype/simulator:latest simulator
   docker build -t prototype/eth-netstats:latest eth-netstats
   docker build -t prototype/eth-net-intelligence-api:latest eth-net-intelligence-api
@@ -98,7 +99,7 @@ function sim_start(){
     bootnode=`./getnodeurl.sh $BOOTNODE log`
   done
 
-  docker run -d -p 8545:8545/tcp --name=$PEER1 prototype/geth:latest 1 $bootnode
+  docker run -d -p 8545:8545/tcp --name=$PEER1 prototype/geth-miner:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
 
   # deploy the simulator
