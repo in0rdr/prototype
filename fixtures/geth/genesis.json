@@ -5,7 +5,10 @@
         "eip155Block": 0,
         "eip158Block": 0
     },
-  "alloc"      : {},
+  "alloc"      : {
+        "0x9bc7b5708122740203d72ed2f3c106afe0d9c896": { "balance": "5000000000000000000" }
+  },
+  "coinbase"   : "0x0000000000000000000000000000000000000000",
   "difficulty" : "0x20000",
   "extraData"  : "",
   "gasLimit"   : "0x2fefd8",
