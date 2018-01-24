@@ -25,7 +25,7 @@ class Mitigator extends Customer {
 
     async uploadProof(_task) {
         var receipt = Promise.resolve({});
-        if (ctr.mitgn.started(_task.id)) {
+        if (!ctr.mitgn.aborted(_task.id)) {
             var proofHash = await new Promise((resolve, reject) => {
                 ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
                     if (err) reject(err);
@@ -36,6 +36,8 @@ class Mitigator extends Customer {
             var tx = ctr.mitgn.uploadProof.sendTransaction(_task.id, proofHash, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
+        } else {
+            this.nextMove[_task.id] = 'complete';
         }
         return receipt;
     }
