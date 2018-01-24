@@ -144,7 +144,8 @@ class RationalMitigator extends Mitigator {
         if (typeof rating !== 'undefined') {
             return super.rate(_task, rating);
         } else {
-            // target did not rate, act selfish
+            // target did not rate or validate, act selfish
+            this.nextMove[_task.id] = 'abort'
             return Promise.resolve({});
         }
     }
