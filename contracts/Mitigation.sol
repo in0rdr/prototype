@@ -66,6 +66,10 @@ contract Mitigation {
         return (_id < tasks.length);
     }
 
+    function taskCount() constant public returns(uint) {
+        return tasks.length;
+    }
+
     function aborted(uint _id) constant public returns(bool) {
         if (!taskExists(_id)) return false;
         return (uint(tasks[_id].state) == uint(State.aborted));

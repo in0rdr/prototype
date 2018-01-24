@@ -1,0 +1,7 @@
+---
+  :verbose: true
+  :concurrency: 1
+  :schedule:
+    get_latest_reputon_list:
+      every: 15s
+      class: GetLatestReputonList
