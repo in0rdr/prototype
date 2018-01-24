@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
 # Cleanup and start a fresh env.
 
-PEER1="prototype_peer1"
-PEER2="prototype_peer2"
-BOOTNODE="prototype_bootnode"
-MONGO="prototype_mongo"
-IPFS="prototype_ipfs"
-API="prototype_api"
-SIM="prototype_simulator"
-NETSTATS="prototype_netstats"
-NETSTATS_INTEL="prototype_netstats-intel"
+source .sim_env
 
 # if [ ! -e "docker-compose.yaml" ];then
 #   echo "docker-compose.yaml not found."
@@ -52,32 +44,26 @@ function build(){
   docker build -t prototype/eth-net-intelligence-api:latest eth-net-intelligence-api
 }
 
-function up(){
-  docker run -d --name=$IPFS ipfs/go-ipfs
+function api_start(){
+  reputation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('./simulator/build/Reputation.json')).interface)"`
+  mitigation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('./simulator/build/Mitigation.json')).interface)"`
+  reputation_contract_addr=`docker logs $SIM | grep ' Reputation:' | awk '{print $2}'`
+  mitigation_contract_addr=`docker logs $SIM | grep ' Mitigation:' | awk '{print $2}'`
+  docker run --name $REDIS -d redis
   docker run -d --name=$MONGO prototype/mongo:latest
+  redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
   mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
-  docker run -d -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
-  docker run -d --name=$BOOTNODE prototype/bootnode:latest
+  geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
 
-  # get bootnode enode
-  bootnode=`./getnodeurl.sh $BOOTNODE log`
-  while [[ $bootnode != enode* ]]; do
-    sleep 1
-    bootnode=`./getnodeurl.sh $BOOTNODE log`
-  done
+  MITGN_ABI=$mitigation_abi MITGN_ADDR=$mitigation_contract_addr REP_ABI=$reputation_abi ETHEREUM_RPC_URL=$ETHEREUM_RPC_URL REP_ADDR=$REP_ADDR REDIS_URL=$REDIS_URL bundle exec sidekiq -r ./app/workers/get_reputons.rb
+  docker run -d -e "REP_ABI=$reputation_abi" -e "ETHEREUM_RPC_URL=http://$geth_ip:8545" -e "REP_ADDR=$reputation_contract_addr" -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
+}
 
-  docker run -d -p 8545:8545 -p 30303:30303 -p 30303:30303/udp --name=$PEER1 prototype/geth:latest 1 $bootnode
-  docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
-
-  # deploy the simulator
-  sleep 3
-  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
-  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
-
+function netstats(){
   # deploy netstats
   docker run -d --name=$NETSTATS prototype/eth-netstats:latest
   netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
+  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
   peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
   docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
 }
@@ -107,12 +93,6 @@ function sim_start(){
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
   ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
   docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
-
-  # deploy netstats
-  docker run -d --name=$NETSTATS prototype/eth-netstats:latest
-  netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
-  peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
-  docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
 }
 
 function sim_restart(){
@@ -139,7 +119,8 @@ do
 
     case "$opt" in
         up)
-            up
+            sim_start
+            api_start
             ;;
         down)
             down
@@ -159,7 +140,8 @@ do
             ;;
         soft_restart)
             down
-            up
+            sim_start
+            api_start
             ;;
         sim_start)
             sim_start
@@ -171,7 +153,8 @@ do
             down
             clean
             build
-            up
+            sim_start
+            api_start
             ;;
 
         *)
