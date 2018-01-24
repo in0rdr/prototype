@@ -68,7 +68,7 @@ class UndecidedTarget extends Target {
 
     abort(_task) {
         var tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-        console.log("[", _task.id, "]", currentPlayer.constructor.name, "\t aborts");
+        console.log("[", _task.id, "]", this.constructor.name, "\t aborts");
         this.nextMove[_task.id] = 'complete';
         return web3.eth.getTransactionReceiptMined(tx);
     }
