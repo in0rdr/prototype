@@ -129,14 +129,24 @@ class RationalMitigator extends Mitigator {
         } else if (ctr.mitgn.rejected(_task.id)) {
             rating = 0;
             console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target rejected)");
-        } else if (!ctr.mitgn.validated(_task.id) && targetRating === 0) {
+        } else if (!ctr.mitgn.validated(_task.id)
+            && ctr.rep.attackTargetRated(_task.id)
+            && targetRating === 0) {
             rating = 0;
             console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, bad rating received)");
-        } else if (!ctr.mitgn.validated(_task.id) && targetRating === 1) {
+        } else if (!ctr.mitgn.validated(_task.id)
+            && ctr.rep.attackTargetRated(_task.id)
+            && targetRating === 1) {
             rating = 1;
             console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, good rating received)");
         }
-        return super.rate(_task, rating);
+
+        if (typeof rating !== 'undefined') {
+            return super.rate(_task, rating);
+        } else {
+            // target did not rate, act selfish
+            return Promise.resolve({});
+        }
     }
 }
 
