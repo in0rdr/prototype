@@ -10,10 +10,14 @@ class Customer {
         this.nextMove = {};
     }
 
+    init(_task) {
+        //starting move
+    }
+
     advance(_task, _activeTasks, _completedTasks) {
         if (typeof this.nextMove[_task.id] === 'undefined') {
-            this.nextMove[_task.id] = 'init';
-            return Promise.resolve({});
+            console.log("[", _task.id, "]", this.constructor.name, "\t initalizes");
+            return this.init(_task);
         } else if (this.nextMove[_task.id] === 'complete') {
             return this.complete(_task, _activeTasks, _completedTasks);
         } else {

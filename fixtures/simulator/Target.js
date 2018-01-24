@@ -18,8 +18,8 @@ class Target extends Customer {
 
     async start(_task) {
         var receipt = Promise.resolve({});
-        if (ctr.mitgn.approved(_task.id) && !ctr.mitgn.started(_task.id)) {
-            console.log("[", _task.id, "]", this.constructor.name, "starts");
+        if (ctr.mitgn.approved(_task.id)) {
+            console.log("[", _task.id, "]", this.constructor.name, "\t starts");
             var tx = ctr.mitgn.start.sendTransaction(_task.id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
@@ -33,9 +33,7 @@ class Target extends Customer {
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
 
-        if (ctr.mitgn.started(_task.id)
-            && !ctr.rep.attackTargetRated(_task.id)
-            && web3.eth.blockNumber > serviceDeadline) {
+        if (web3.eth.blockNumber > serviceDeadline) {
             receipt = await utils.rate(_rating, this, _task.id, "proof-ok");
             this.nextMove[_task.id] = 'validate';
         }
@@ -47,7 +45,7 @@ class Target extends Customer {
         var receipt = Promise.resolve({});
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
-        if (web3.eth.blockNumber > serviceDeadline && !ctr.mitgn.validated(_task.id)) {
+        if (web3.eth.blockNumber > serviceDeadline) {
             console.log("[", _task.id, "]", this.constructor.name, "\t acknowledges");
             var tx = ctr.mitgn.validateProof.sendTransaction(_task.id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);

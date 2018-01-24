@@ -111,8 +111,8 @@ function replenishTasks() {
                                 ctr.id.address,
                                 t.addr,
                                 m.addr,
-                                Math.floor(Math.random() * 20) + 3,
-                                Math.floor(Math.random() * 40) + 23,
+                                Math.floor(Math.random() * 11) + 3,
+                                Math.floor(Math.random() * 11) + 17,
                                 web3.toWei(1, "ether"),
                                 result[0].hash,
                                 {from: t.addr, gas: GAS_EST});
@@ -127,7 +127,7 @@ function replenishTasks() {
 
                     // deterministic customer selection for testing
                     //var target = customers[2]
-                    //var mitigator = customers[7]
+                    //var mitigator = customers[8]
 
                     // select random customers profile
                     /*var target = mitigator = new Customer({});
@@ -152,8 +152,8 @@ function replenishTasks() {
                         ctr.id.address,
                         target.addr,
                         mitigator.addr,
-                        Math.floor(Math.random() * 20) + 3,
-                        Math.floor(Math.random() * 40) + 23,
+                        3,
+                        13,
                         web3.toWei(1, "ether"),
                         result[0].hash,
                         {from: target.addr, gas: GAS_EST});

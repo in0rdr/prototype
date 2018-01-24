@@ -17,20 +17,15 @@ class Mitigator extends Customer {
     }
 
     async approve(_task) {
-        var receipt = Promise.resolve({});
-        if (!ctr.mitgn.approved(_task.id)) {
-            var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-            console.log("[", _task.id, "]", this.constructor.name, "\t approves");
-            receipt = await web3.eth.getTransactionReceiptMined(tx);
-            this.nextMove[_task.id] = 'uploadProof';
-        }
-
-        return receipt;
+        var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+        console.log("[", _task.id, "]", this.constructor.name, "\t approves");
+        this.nextMove[_task.id] = 'uploadProof';
+        return await web3.eth.getTransactionReceiptMined(tx);
     }
 
     async uploadProof(_task) {
         var receipt = Promise.resolve({});
-        if (ctr.mitgn.started(_task.id) && !ctr.mitgn.proofUploaded(_task.id)) {
+        if (ctr.mitgn.started(_task.id)) {
             var proofHash = await new Promise((resolve, reject) => {
                 ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
                     if (err) reject(err);
@@ -42,7 +37,6 @@ class Mitigator extends Customer {
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
         }
-
         return receipt;
     }
 
@@ -51,9 +45,7 @@ class Mitigator extends Customer {
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var validationDeadline = startTime + ctr.mitgn.getValidationDeadline(_task.id).toNumber();
 
-        if (ctr.mitgn.started(_task.id)
-            && !ctr.rep.mitigatorRated(_task.id)
-            && web3.eth.blockNumber > validationDeadline) {
+        if (web3.eth.blockNumber > validationDeadline) {
             receipt = await utils.rate(rating, this, _task.id, "target-ok");
             this.nextMove[_task.id] = ctr.mitgn.validated(_task.id) ? 'complete' : 'abort';
         }
@@ -133,16 +125,16 @@ class RationalMitigator extends Mitigator {
         var rating;
         if (ctr.mitgn.acknowledged(_task.id)) {
             rating = 1;
-            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target acknowledged)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target acknowledged)");
         } else if (ctr.mitgn.rejected(_task.id)) {
             rating = 0;
-            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target rejected)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target rejected)");
         } else if (!ctr.mitgn.validated(_task.id) && targetRating === 0) {
             rating = 0;
-            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(no validation, bad rating received)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, bad rating received)");
         } else if (!ctr.mitgn.validated(_task.id) && targetRating === 1) {
             rating = 1;
-            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(no validation, good rating received)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, good rating received)");
         }
         return super.rate(_task, rating);
     }
