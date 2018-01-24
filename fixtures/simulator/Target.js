@@ -48,7 +48,7 @@ class Target extends Customer {
         var startTime = ctr.mitgn.getStartTime(_task.id).toNumber();
         var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
         if (web3.eth.blockNumber > serviceDeadline) {
-            console.log("[", _task.id, "]", this.constructor.name, "\t acknowledges");
+            console.log("[", _task.id, "]", this.constructor.name, "\t", _response ? "acknowledges" : "rejects");
             var tx = ctr.mitgn.validateProof.sendTransaction(_task.id, _response, ctr.rep.address, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'abort';
