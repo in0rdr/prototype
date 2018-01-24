@@ -125,11 +125,11 @@ class IrrationalTarget extends Target {
     }
 
     rate(_task) {
-        return super.rate(_task, rating);
+        return super.rate(_task, this.rating);
     }
 
     validate(_task) {
-        return super.validate(_task, !rating);
+        return super.validate(_task, !this.rating);
     }
 }
 
