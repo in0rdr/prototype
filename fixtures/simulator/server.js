@@ -103,8 +103,8 @@ function attackerFile() {
 
 async function testAll() {
     // test all possible combinations of target/mitigator
-    var targets = customers.slice(1, 5);
-    var mitigators = customers.slice(6,11);
+    var targets = customers.slice(0, 5);
+    var mitigators = customers.slice(5,11);
     var tx;
     for (t of targets) {
         for (m of mitigators) {
