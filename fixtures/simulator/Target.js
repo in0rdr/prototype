@@ -18,11 +18,13 @@ class Target extends Customer {
 
     async start(_task) {
         var receipt = Promise.resolve({});
-        if (ctr.mitgn.approved(_task.id)) {
+        if (!ctr.mitgn.aborted(_task.id)) {
             console.log("[", _task.id, "]", this.constructor.name, "\t starts");
             var tx = ctr.mitgn.start.sendTransaction(_task.id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
+        } else {
+            this.nextMove[_task.id] = 'complete';
         }
 
         return receipt;
