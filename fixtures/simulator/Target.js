@@ -102,7 +102,7 @@ class SatisfiedTarget extends Target {
     }
 
     validate(_task) {
-        return super.validate(_task, 1);
+        return super.validate(_task, true);
     }
 }
 
@@ -116,7 +116,7 @@ class DissatisfiedTarget extends Target {
     }
 
     validate(_task) {
-        return super.validate(_task, 0);
+        return super.validate(_task, false);
     }
 }
 
@@ -131,7 +131,7 @@ class IrrationalTarget extends Target {
     }
 
     validate(_task) {
-        return super.validate(_task, !this.rating);
+        return super.validate(_task, (this.rating === 0) ? true : false);
     }
 }
 
