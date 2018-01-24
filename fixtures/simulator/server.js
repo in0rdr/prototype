@@ -82,86 +82,93 @@ new Promise(async (res) => {
     console.log("Customer types:", customers.map(c => c.constructor.name));
 }).then(() => {
     // create new tasks if needed
-    replenishTasks();
+    //replenishTasks();
     //setTimeout(replenishTasks, 30000);
+    testAll();
 });
 
-function replenishTasks() {
+function attackerFile() {
+        // prepare an attacker file
+        var createIps = spawn('python', ['createIPs.py', 1, 5]);
+        var ipfsHash = new Promise((resolve, reject) => {
+            createIps.stdout.on('data', function (data){
+                ipfs.files.add(new Buffer(data), async (err, result) => {
+                    if (err) reject(err);
+                    resolve(result[0].hash);
+                });
+            });
+        });
+        return ipfsHash;
+}
+
+async function testAll() {
+    // test all possible combinations of target/mitigator
+    var targets = customers.slice(1, 5);
+    var mitigators = customers.slice(6,11);
+    var tx;
+    for (t of targets) {
+        for (m of mitigators) {
+            var ipfsHash = await attackerFile();
+
+            // fund target
+            tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: t.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+            await web3.eth.getTransactionReceiptMined(tx);
+
+            // create mitigation contract
+            tx = ctr.mitgn.newTask.sendTransaction(
+                ctr.id.address,
+                t.addr,
+                m.addr,
+                Math.floor(Math.random() * 11) + 3,
+                Math.floor(Math.random() * 11) + 17,
+                web3.toWei(1, "ether"),
+                ipfsHash,
+                {from: t.addr, gas: GAS_EST});
+            await web3.eth.getTransactionReceiptMined(tx);
+        }
+    }
+}
+
+async function replenishTasks() {
     if (tasks.length >= 10) {
         console.log("Still 10 task in pipelne, checking again in 30s..");
     } else {
         console.log("Not enough tasks, creating new one..");
-        // prepare an attacker file
-        // (task scope / IPs to block)
-        var createIps = spawn('python', ['createIPs.py', 1, 5]);
-        createIps.stdout.on('data', function (data){
-            ipfs.files.add(new Buffer(data), async (err, result) => {
-                if (!err) {
+        var ipfsHash = await attackerFile();
 
+        // select random customers profile
+        /*var target = mitigator = new Customer({});
 
-                    // test all possible combinations of target/mitigator
-                    var targets = customers.slice(1, 5);
-                    var mitigators = customers.slice(6,11);
-                    var tx;
-                    for (t of targets) {
-                        for (m of mitigators) {
-                            tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: t.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
-                            await web3.eth.getTransactionReceiptMined(tx);
-                            tx = ctr.mitgn.newTask.sendTransaction(
-                                ctr.id.address,
-                                t.addr,
-                                m.addr,
-                                Math.floor(Math.random() * 11) + 3,
-                                Math.floor(Math.random() * 11) + 17,
-                                web3.toWei(1, "ether"),
-                                result[0].hash,
-                                {from: t.addr, gas: GAS_EST});
+        while (!(Object.getPrototypeOf(target) instanceof Target.Target
+            && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
+            target = customers[Math.floor(Math.random()*customers.length)];
+            mitigator = customers[Math.floor(Math.random()*customers.length)];
+            console.log("Sampled new customers")
+        }*/
 
-                            await web3.eth.getTransactionReceiptMined(tx);
-                        }
-                    }
+        // deterministic customer selection for testing
+        var target = customers[2]
+        var mitigator = customers[8]
 
+        // fund target
+        var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+        await web3.eth.getTransactionReceiptMined(tx);
 
+        console.log("Creating a new task with");
+        console.log(" - Target:", target);
+        console.log(" - Mitigator:", mitigator);
 
-
-
-                    // deterministic customer selection for testing
-                    //var target = customers[2]
-                    //var mitigator = customers[8]
-
-                    // select random customers profile
-                    /*var target = mitigator = new Customer({});
-
-                    while (!(Object.getPrototypeOf(target) instanceof Target.Target
-                        && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
-                        target = customers[Math.floor(Math.random()*customers.length)];
-                        mitigator = customers[Math.floor(Math.random()*customers.length)];
-                        console.log("Sampled new customers")
-                    }*/
-
-                    // fund target
-                    /*var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
-                    await web3.eth.getTransactionReceiptMined(tx);
-
-                    console.log("Creating a new task with");
-                    console.log(" - Target:", target);
-                    console.log(" - Mitigator:", mitigator);
-
-                    // create a new task with the chosen customer strategy
-                    var tx = ctr.mitgn.newTask.sendTransaction(
-                        ctr.id.address,
-                        target.addr,
-                        mitigator.addr,
-                        3,
-                        13,
-                        web3.toWei(1, "ether"),
-                        result[0].hash,
-                        {from: target.addr, gas: GAS_EST});
-
-                    await web3.eth.getTransactionReceiptMined(tx);*/
-                }
-            });
-        });
+        // create a new task with the chosen customer strategy
+        var tx = ctr.mitgn.newTask.sendTransaction(
+            ctr.id.address,
+            target.addr,
+            mitigator.addr,
+            3,
+            13,
+            web3.toWei(1, "ether"),
+            ipfsHash,
+            {from: target.addr, gas: GAS_EST});
+        await web3.eth.getTransactionReceiptMined(tx);
     }
 }
 
