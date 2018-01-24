@@ -1,6 +1,6 @@
 #!/bin/sh
 
-CONTRACT_DIRS=("simulator/contracts/" "api/contracts/")
+CONTRACT_DIRS=("simulator/contracts/")
 
 for i in "${CONTRACT_DIRS[@]}"
 do
