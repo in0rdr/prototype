@@ -47,7 +47,7 @@ class Mitigator extends Customer {
 
         if (web3.eth.blockNumber > validationDeadline) {
             receipt = await utils.rate(rating, this, _task.id, "target-ok");
-            this.nextMove[_task.id] = ctr.mitgn.proofUploaded(_task.id) ? 'abort' : 'complete';
+            this.nextMove[_task.id] = 'abort';
         }
 
         return receipt;
@@ -89,7 +89,7 @@ class SelfishMitigator extends Mitigator {
     }
 
     rate(_task) {
-        this.nextMove[_task.id] = 'complete';
+        this.nextMove[_task.id] = 'abort';
         return Promise.resolve({});
     }
 }

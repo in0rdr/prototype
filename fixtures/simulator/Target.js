@@ -47,9 +47,9 @@ class Target extends Customer {
         var serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(_task.id).toNumber();
         if (web3.eth.blockNumber > serviceDeadline) {
             console.log("[", _task.id, "]", this.constructor.name, "\t acknowledges");
-            var tx = ctr.mitgn.validateProof.sendTransaction(_task.id, true, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+            var tx = ctr.mitgn.validateProof.sendTransaction(_task.id, _response, ctr.rep.address, {from: this.addr, gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
-            this.nextMove[_task.id] = ctr.mitgn.proofUploaded(_task.id) ? 'complete' : 'abort';
+            this.nextMove[_task.id] = 'abort';
         }
 
         return receipt;
@@ -80,12 +80,12 @@ class SelfishTarget extends Target {
     }
 
     rate(_task) {
-        this.nextMove[_task.id] = 'complete';
+        this.nextMove[_task.id] = 'abort';
         return Promise.resolve({});
     }
 
     validate(_task) {
-        this.nextMove[_task.id] = 'complete';
+        this.nextMove[_task.id] = 'abort';
         return Promise.resolve({});
     }
 }
