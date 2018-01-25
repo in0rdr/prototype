@@ -3,6 +3,8 @@
 
 source .env
 
+CONTRACT_BUILD_PATH="../contracts/build"
+
 # if [ ! -e "docker-compose.yaml" ];then
 #   echo "docker-compose.yaml not found."
 #   exit 8
@@ -44,9 +46,14 @@ function build(){
   docker build -t prototype/eth-net-intelligence-api:latest eth-net-intelligence-api
 }
 
+function compile_contracts(){
+  cd ../contracts
+  npm run compile
+}
+
 function api_start(){
-  reputation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('./simulator/build/Reputation.json')).interface)"`
-  mitigation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('./simulator/build/Mitigation.json')).interface)"`
+  reputation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('$CONTRACT_BUILD_PATH/Reputation.json')).interface)"`
+  mitigation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('$CONTRACT_BUILD_PATH/Mitigation.json')).interface)"`
   reputation_contract_addr=`docker logs $SIM | grep ' Reputation:' | awk '{print $2}'`
   mitigation_contract_addr=`docker logs $SIM | grep ' Mitigation:' | awk '{print $2}'`
   docker run --name $REDIS -d redis
@@ -56,7 +63,12 @@ function api_start(){
   geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
 
   MITGN_ABI=$mitigation_abi MITGN_ADDR=$mitigation_contract_addr REP_ABI=$reputation_abi ETHEREUM_RPC_URL=$ETHEREUM_RPC_URL REP_ADDR=$REP_ADDR REDIS_URL=$REDIS_URL bundle exec sidekiq -r ./app/workers/get_reputons.rb
-  docker run -d -e "REP_ABI=$reputation_abi" -e "ETHEREUM_RPC_URL=http://$geth_ip:8545" -e "REP_ADDR=$reputation_contract_addr" -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
+  docker run -d -p 3000:3000 -e "REP_ABI=$reputation_abi" -e "ETHEREUM_RPC_URL=http://$geth_ip:8545" -e "REP_ADDR=$reputation_contract_addr" -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
+}
+
+function clean_api() {
+  docker stop $API $MONGO $REDIS
+  docker rm $API $MONGO $REDIS
 }
 
 function netstats(){
@@ -85,6 +97,7 @@ function sim_start(){
     bootnode=`./getnodeurl.sh $BOOTNODE log`
   done
 
+  # run Ethereum nodes
   docker run -d -p 8545:8545 -p 30303:30303 -p 30303:30303/udp --name=$PEER1 prototype/geth:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
 
@@ -118,6 +131,16 @@ for opt in "$@"
 do
 
     case "$opt" in
+        api_start)
+            api_start
+            ;;
+        clean_api) 
+            clean_api
+            ;;
+        api_restart)
+            clean_api
+            api_start
+            ;;
         up)
             sim_start
             api_start
@@ -155,6 +178,9 @@ do
             build
             sim_start
             api_start
+            ;;
+        compile_contracts)
+            compile_contracts
             ;;
 
         *)

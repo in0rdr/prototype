@@ -1,9 +1,9 @@
 {
-  "name": "prototype-simulator",
+  "name": "prototype-contracts",
   "version": "1.0.0",
-  "description": "Reputation and Reward Scheme Simulator",
+  "description": "Reputation and Reward Scheme Contracts",
   "scripts": {
-    "restart": "killall node; npm start"
+    "compile": "node -e \"require('./compiler.js').compile()\""
   },
   "repository": {
     "type": "git",
@@ -16,7 +16,6 @@
   },
   "homepage": "https://github.com/in0rdr/prototype#readme",
   "dependencies": {
-    "ipfs-api": "^17.2.7",
-    "web3": "^0.20.2"
+    "solc": "^0.4.19"
   }
 }

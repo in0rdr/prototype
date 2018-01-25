@@ -6,9 +6,9 @@ var solc = require('solc');
 module.exports = {
 
     compile: function() {
-        var identityContractFile = fs.readFileSync('./contracts/Identity.sol').toString();
-        var mitigationContractFile = fs.readFileSync('./contracts/Mitigation.sol').toString();
-        var reputationContractFile = fs.readFileSync('./contracts/Reputation.sol').toString();
+        var identityContractFile = fs.readFileSync('./Identity.sol').toString();
+        var mitigationContractFile = fs.readFileSync('./Mitigation.sol').toString();
+        var reputationContractFile = fs.readFileSync('./Reputation.sol').toString();
 
         var input = {
             'Identity.sol': identityContractFile,

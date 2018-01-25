@@ -1,4 +1,4 @@
-const CONTRACT_BUILD_PATH = './build/';
+const CONTRACT_BUILD_PATH = '../../contracts/build/';
 const GAS_EST = 3000000;
 
 var args = process.argv.slice(2);
