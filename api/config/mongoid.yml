@@ -41,7 +41,7 @@ development:
 
         # The database or source to authenticate the user against.
         # (default: the database specified above or admin)
-        auth_source: admin
+        auth_source: 'admin'
 
         # Force a the driver cluster to behave in a certain manner instead of auto-
         # discovering. Can be one of: :direct, :replica_set, :sharded. Set to :direct

@@ -56,7 +56,6 @@ function build(){
   compile_contracts
 
   echo "Building prototype images"
-  docker build -t prototype/mongo:latest mongo
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
   docker build -t prototype/eth-netstats:latest eth-netstats
@@ -117,10 +116,12 @@ function start_api(){
   docker build -t prototype/api:latest .
 
   docker run --name $REDIS -p 6379:6379 -d redis
-  docker run -d --name=$MONGO prototype/mongo:latest
+  docker run --name=$MONGO -e "MONGO_INITDB_ROOT_USERNAME=root" -e "MONGO_INITDB_ROOT_PASSWORD=1234" -d mongo:latest
+  #docker exec -it $MONGO mongo -u root -p 1234 --authenticationDatabase admin api_development
 
   redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
   mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
+  #host_ip=`ip route|awk '/docker0/ { print $9 }'`
   geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
 
   # read contract interfaces
@@ -139,8 +140,8 @@ function start_api(){
 }
 
 function restart_api(){
-  docker stop $API
-  docker rm $API
+  docker stop $API $REDIS $MONGO
+  docker rm $API $REDIS $MONGO
   docker rmi prototype/api
   start_api
 }

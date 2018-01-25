@@ -1,4 +1,10 @@
 require 'ethereum.rb'
+require 'mongoid'
+require_relative '../models/task'
+
+
+
+Mongoid.load!(File.expand_path('mongoid.yml', './config'), :development)
 
 module Decentral
   class Reputon
@@ -41,6 +47,9 @@ module Decentral
       puts task
       puts "SETTING known_task_count: #{task_index}"
       REDIS.set('known_task_count', task_index)
+
+      Task.create(mitgn: MITIGATION_CONTRACT_ADDRESS, id: task_index,
+        status: task[6], target: task[0], mitigator: task[1])
     end
 
     def self.get_latest_reputons
