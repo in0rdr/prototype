@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cleanup and start a fresh env.
 
-source .sim_env
+source .env
 
 # if [ ! -e "docker-compose.yaml" ];then
 #   echo "docker-compose.yaml not found."
