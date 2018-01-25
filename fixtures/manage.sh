@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# Cleanup and start a fresh env.
 
+# Management utilities to clean up
+# and start a fresh environment
+
+# read container names
 source .env
 
-CONTRACT_BUILD_PATH="../contracts/build"
-
-# if [ ! -e "docker-compose.yaml" ];then
-#   echo "docker-compose.yaml not found."
-#   exit 8
-# fi
-
-function clean(){
+function down(){
+  # Stop all prototype containers
   lines=`docker ps -a | grep 'prototype_' | wc -l`
+  if [ "$lines" -gt 0 ]; then
+    docker ps -a | grep 'prototype_' | awk '{print $1}' | xargs docker stop
+  fi
+}
 
+function clean_all(){
+  # Clean all containers and prototype images
+  clean_containers
+
+  lines=`docker ps -a | grep 'prototype_' | wc -l`
   if [ "$lines" -gt 0 ]; then
     docker ps -a | grep 'prototype_' | awk '{print $1}' | xargs docker rm -f
   fi
@@ -23,7 +29,12 @@ function clean(){
   fi
 }
 
-function clear_containers(){
+function clean_containers(){
+  # Stop and remove all containers
+  #
+  # Removes all containers,
+  # not only prototype containers
+  
   lines=`docker ps -aq | wc -l`
   if [ "$lines" -gt 0 ]; then
    docker stop `docker ps -aq`
@@ -31,62 +42,29 @@ function clear_containers(){
   fi
 }
 
-function build(){
-  echo "Copying contracts and rails web app for deployment"
-  sh ./copycontracts.sh
-  sh ./copyrails.sh
+function compile_contracts(){
+  cd ../contracts
+  npm run compile
+  cd ../fixtures
 
-  echo "Building prototype images (if not latest already)"
+  # copy contracts abi to simulator and api
+  ./copycontracts.sh
+}
+
+function build(){
+  echo "Compiling contracts"
+  compile_contracts
+
+  echo "Building prototype images"
   docker build -t prototype/mongo:latest mongo
-  docker build -t prototype/api:latest api
   docker build -t prototype/bootnode:latest bootnode
   docker build -t prototype/geth:latest geth
-  docker build -t prototype/simulator:latest simulator
   docker build -t prototype/eth-netstats:latest eth-netstats
   docker build -t prototype/eth-net-intelligence-api:latest eth-net-intelligence-api
 }
 
-function compile_contracts(){
-  cd ../contracts
-  npm run compile
-}
-
-function api_start(){
-  reputation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('$CONTRACT_BUILD_PATH/Reputation.json')).interface)"`
-  mitigation_abi=`node -e "require('fs'); console.log(JSON.parse(fs.readFileSync('$CONTRACT_BUILD_PATH/Mitigation.json')).interface)"`
-  reputation_contract_addr=`docker logs $SIM | grep ' Reputation:' | awk '{print $2}'`
-  mitigation_contract_addr=`docker logs $SIM | grep ' Mitigation:' | awk '{print $2}'`
-  docker run --name $REDIS -d redis
-  docker run -d --name=$MONGO prototype/mongo:latest
-  redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
-  mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
-  geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-
-  MITGN_ABI=$mitigation_abi MITGN_ADDR=$mitigation_contract_addr REP_ABI=$reputation_abi ETHEREUM_RPC_URL=$ETHEREUM_RPC_URL REP_ADDR=$REP_ADDR REDIS_URL=$REDIS_URL bundle exec sidekiq -r ./app/workers/get_reputons.rb
-  docker run -d -p 3000:3000 -e "REP_ABI=$reputation_abi" -e "ETHEREUM_RPC_URL=http://$geth_ip:8545" -e "REP_ADDR=$reputation_contract_addr" -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234" --name=$API prototype/api:latest
-}
-
-function clean_api() {
-  docker stop $API $MONGO $REDIS
-  docker rm $API $MONGO $REDIS
-}
-
-function netstats(){
-  # deploy netstats
-  docker run -d --name=$NETSTATS prototype/eth-netstats:latest
-  netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
-  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
-  docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
-}
-
-function down(){
-  docker stop $NETSTATS $NETSTATS_INTEL \
-  $SIM $PEER1 $PEER2 $BOOTNODE \
-  $API $MONGO $IPFS
-}
-
-function sim_start(){
+function start_eth(){
+  # Start the Ethereum ledger infrastructure
   docker run -d --name=$IPFS ipfs/go-ipfs
   docker run -d --name=$BOOTNODE prototype/bootnode:latest
 
@@ -100,7 +78,22 @@ function sim_start(){
   # run Ethereum nodes
   docker run -d -p 8545:8545 -p 30303:30303 -p 30303:30303/udp --name=$PEER1 prototype/geth:latest 1 $bootnode
   docker run -d --name=$PEER2 prototype/geth:latest 0 $bootnode
+}
 
+function restart_eth(){
+  down
+  docker rm $PEER1 $PEER2 $BOOTNODE $IPFS
+  start_eth
+}
+
+function start_sim(){
+  compile_contracts
+  start_eth
+
+  cd simulator
+  ./copysimulator.sh
+  docker build -t prototype/simulator:latest .
+  
   # deploy the simulator
   sleep 3
   peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
@@ -108,84 +101,100 @@ function sim_start(){
   docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 }
 
-function sim_restart(){
-  docker stop $API $MONGO $SIM
-
-  lines=`docker ps -a | grep $SIM | wc -l`
-  if [ "$lines" -eq 1 ]; then
-    docker ps -a | grep $SIM | awk '{print $1}' | xargs docker rm -f
-  fi
-
-  lines=`docker images | grep 'prototype/simulator' | wc -l`
-  if [ "$lines" -eq 1 ]; then
-    docker images | grep 'prototype/simulator' | awk '{print $1}' | xargs docker rmi -f
-  fi
-
-  docker build -t prototype/simulator:latest simulator
-  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
-  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
-  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
+function restart_sim(){
+  docker stop $SIM
+  docker rm $SIM
+  docker rmi prototype/simulator
+  start_sim
 }
 
-for opt in "$@"
-do
+function start_api(){
+  #compile_contracts
+  #start_eth
 
-    case "$opt" in
-        api_start)
-            api_start
-            ;;
-        clean_api) 
-            clean_api
-            ;;
-        api_restart)
-            clean_api
-            api_start
-            ;;
-        up)
-            sim_start
-            api_start
-            ;;
-        down)
-            down
-            ;;
-        build)
-            build
-            ;;
-        rebuild)
-            clean
-            build
-            ;;
-        clean)
-            clean
-            ;;
-        clear_containers)
-            clear_containers
-            ;;
-        soft_restart)
-            down
-            sim_start
-            api_start
-            ;;
-        sim_start)
-            sim_start
-            ;;
-        sim_restart)
-            sim_restart
-            ;;
-        restart)
-            down
-            clean
-            build
-            sim_start
-            api_start
-            ;;
-        compile_contracts)
-            compile_contracts
-            ;;
+  cd api
+  ./copyrails.sh
+  docker build -t prototype/api:latest .
 
-        *)
-            echo $"Usage: $0 {up|down|build|rebuild|clean|clear_containers|soft_restart|sim_start|sim_restart|restart}"
-            exit 1
+  docker run --name $REDIS -p 6379:6379 -d redis
+  docker run -d --name=$MONGO prototype/mongo:latest
 
+  redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
+  mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
+  geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+
+  # read contract interfaces
+  if [ -z "$1" ]; then
+    rep_addr=`docker logs $SIM | grep ' Reputation:' | awk '{print $2}'`
+  fi
+  if [ -z "$2" ]; then
+    mitgn_addr=`docker logs $SIM | grep ' Mitigation:' | awk '{print $2}'`
+  fi
+
+  # run sidekiq worker and api
+  docker run -d -p 3000:3000 -e "ETHEREUM_RPC_URL=http://$geth_ip:8545"\
+             -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
+             -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234"\
+             --name=$API prototype/api:latest
+}
+
+function restart_api(){
+  docker stop $API
+  docker rm $API
+  docker rmi prototype/api
+  start_api
+}
+
+function netstats(){
+  start_eth
+  docker stop $NETSTATS $NETSTATS_INTEL
+  docker rm $NETSTATS $NETSTATS_INTEL
+
+  docker run -d --name=$NETSTATS prototype/eth-netstats:latest
+  netstats_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NETSTATS`
+  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
+  docker run -d -e "NETSTAT_IP=$netstats_ip" --name=$NETSTATS_INTEL prototype/eth-net-intelligence-api:latest $peer1_ip $peer2_ip
+}
+
+case "$1" in
+  down)
+    down
+    ;;
+  clean_all) 
+    clean_all
+    ;;
+  clean_containers)
+    clean_containers
+    ;;
+  compile_contracts)
+    compile_contracts
+    ;;
+  build)
+    build
+    ;;
+  start_eth)
+    start_eth
+    ;;
+  restart_eth)
+    restart_eth
+    ;;
+  start_sim)
+    start_sim
+    ;;
+  restart_sim)
+    restart_sim
+    ;;
+  start_api)
+    start_api
+    ;;
+  restart_api)
+    restart_api
+    ;;
+  netstats)
+    netstats
+    ;;
+  *)
+    echo $"Usage: $0 { down | clean_all | clean_containers | compile_contracts | build | start_eth | start_sim | start_api | netstats }"
+    exit 1
 esac
-done
