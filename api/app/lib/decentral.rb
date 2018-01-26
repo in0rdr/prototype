@@ -46,7 +46,7 @@ module Decentral
       puts "SETTING known_task_count: #{task_index}"
       REDIS.set('known_task_count', task_index)
 
-      MitigationTask.create(mitgn: MITIGATION_CONTRACT_ADDRESS, id: task_index, target: task[0], mitigator: task[1])
+      MitigationTask.create(mitgn: MITIGATION_CONTRACT_ADDRESS, _id: task_index, target: task[0], mitigator: task[1])
     end
   end
 
