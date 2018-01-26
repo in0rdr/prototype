@@ -137,6 +137,8 @@ function start_api(){
              -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
              -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234"\
              --name=$API prototype/api:latest
+  # docker exec -it $API tail -F log/sidekiq.log -n 50
+  # docker exec -it $API tail -F log/development.log -n 50
 }
 
 function restart_api(){
