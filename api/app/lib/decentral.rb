@@ -1,27 +1,25 @@
 require 'ethereum.rb'
 require 'mongoid'
-require_relative '../models/task'
-
-
+require_relative '../models/mitigation_task'
 
 Mongoid.load!(File.expand_path('mongoid.yml', './config'), :development)
+REDIS = Redis.new
+BUILDPATH = File.expand_path('contracts/build')
 
 module Decentral
-  class Reputon
-    REPUTATION_CONTRACT_ADDRESS = ENV['REP_ADDR']
+  class Task
     MITIGATION_CONTRACT_ADDRESS = ENV['MITGN_ADDR']
-
-    buildpath = File.expand_path('contracts/build')
-    REPUTATION_CONTRACT_ABI = JSON.parse(File.read(File.join(buildpath, "Reputation.json")))['interface']
-    MITIGATION_CONTRACT_ABI = JSON.parse(File.read(File.join(buildpath, "Mitigation.json")))['interface']
-
-    REDIS = Redis.new
+    MITIGATION_CONTRACT_ABI = JSON.parse(File.read(File.join(BUILDPATH, "Mitigation.json")))['interface']
 
     def self.reset_task_count
       REDIS.set('known_task_count', -1)
     end
 
     def self.get_latest_tasks
+      puts "MITIGATION_CONTRACT_ADDRESS: #{ENV['MITIGATION_CONTRACT_ADDRESS']}"
+      puts "MITIGATION_CONTRACT_ABI: #{ENV['MITIGATION_CONTRACT_ABI']}"
+      puts "ETHEREUM_RPC_URL: #{ENV['ETHEREUM_RPC_URL']}"
+
       client = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
       contract = Ethereum::Contract.create(
         name: 'Mitigation',
@@ -48,9 +46,13 @@ module Decentral
       puts "SETTING known_task_count: #{task_index}"
       REDIS.set('known_task_count', task_index)
 
-      Task.create(mitgn: MITIGATION_CONTRACT_ADDRESS, id: task_index,
-        status: task[6], target: task[0], mitigator: task[1])
+      MitigationTask.create(mitgn: MITIGATION_CONTRACT_ADDRESS, id: task_index, target: task[0], mitigator: task[1])
     end
+  end
+
+  class Reputon
+    REPUTATION_CONTRACT_ADDRESS = ENV['REP_ADDR']
+    REPUTATION_CONTRACT_ABI = JSON.parse(File.read(File.join(BUILDPATH, "Reputation.json")))['interface']
 
     def self.get_latest_reputons
       client = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
