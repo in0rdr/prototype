@@ -64,7 +64,6 @@ function build(){
 
 function start_eth(){
   # Start the Ethereum ledger infrastructure
-  docker run -d --name=$IPFS ipfs/go-ipfs
   docker run -d --name=$BOOTNODE prototype/bootnode:latest
 
   # get bootnode enode
@@ -81,13 +80,14 @@ function start_eth(){
 
 function restart_eth(){
   down
-  docker rm $PEER1 $PEER2 $BOOTNODE $IPFS
+  docker rm $PEER1 $PEER2 $BOOTNODE
   start_eth
 }
 
 function start_sim(){
   compile_contracts
   start_eth
+  docker run -d --name=$IPFS ipfs/go-ipfs
 
   cd simulator
   ./copysimulator.sh
@@ -101,8 +101,8 @@ function start_sim(){
 }
 
 function restart_sim(){
-  docker stop $SIM
-  docker rm $SIM
+  docker stop $SIM $IPFS
+  docker rm $SIM $IPFS
   docker rmi prototype/simulator
   start_sim
 }
