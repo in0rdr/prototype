@@ -1,5 +1,12 @@
+require 'ethereum.rb'
+
+BILDPATH = File.expand_path('contracts/build')
+CONTRACT_ABI = JSON.parse(File.read(File.join(BILDPATH, "Mitigation.json")))['interface']
+ADDRESS = ENV['MITGN_ADDR']
+CLIENT = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
+
 class MitigationTasksController < ApplicationController
-  before_action :set_mitigation_task, only: [:show, :update, :destroy]
+  before_action :set_mitigation_task, only: [:fetch, :show, :update, :destroy]
 
   # GET /mitigation_tasks
   def index
@@ -11,6 +18,19 @@ class MitigationTasksController < ApplicationController
   # GET /mitigation_tasks/1
   def show
     render json: @mitigation_task
+  end
+
+  # GET /mitigation_tasks/1/fetch
+  def fetch
+    contract = Ethereum::Contract.create(
+      name: 'Mitigation',
+      address: ADDRESS,
+      abi: CONTRACT_ABI,
+      client: CLIENT,
+    )
+    task = contract.call.tasks(@mitigation_task._id)
+
+    render json: task
   end
 
   # POST /mitigation_tasks

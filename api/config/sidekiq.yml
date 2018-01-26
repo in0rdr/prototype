@@ -2,6 +2,6 @@
   :verbose: true
   :concurrency: 1
   :schedule:
-    get_latest_reputon_list:
+    get_latest_tasks:
       every: 15s
-      class: GetLatestReputonList
+      class: GetLatestTasks

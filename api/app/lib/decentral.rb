@@ -16,10 +16,6 @@ module Decentral
     end
 
     def self.get_latest_tasks
-      puts "MITIGATION_CONTRACT_ADDRESS: #{ENV['MITIGATION_CONTRACT_ADDRESS']}"
-      puts "MITIGATION_CONTRACT_ABI: #{ENV['MITIGATION_CONTRACT_ABI']}"
-      puts "ETHEREUM_RPC_URL: #{ENV['ETHEREUM_RPC_URL']}"
-
       client = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
       contract = Ethereum::Contract.create(
         name: 'Mitigation',
