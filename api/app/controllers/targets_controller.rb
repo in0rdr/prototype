@@ -9,7 +9,7 @@ class TargetsController < ApplicationController
   end
 
   # GET /targets/0x
-  api! "Show tasks of attack target"
+  api :GET, "/targets/:target_addr", "Show tasks of attack target"
   param :target_addr, String, desc: "Target account address (hex)"
   def show
     tasks = MitigationTask.where(target: @target_addr)
@@ -17,14 +17,14 @@ class TargetsController < ApplicationController
   end
 
   # GET /targets/0x/reputons
-  api! "Show reputation claims about attack target"
+  api :GET, "/targets/:target_addr/reputons", "Show reputation claims about attack target"
   param :target_addr, String, desc: "Target account address (hex)"
   def reputons
     render json: get_target_reputons(@target_addr)
   end
 
   # GET /targets/0x/reputation
-  api! "Show reputation for attack target"
+  api :GET, "/targets/:target_addr/reputation", "Show reputation for attack target"
   param :target_addr, String, desc: "Target account address (hex)"
   def reputation
     reputons = get_target_reputons(@target_addr)

@@ -1,6 +1,6 @@
 Apipie.configure do |config|
   config.app_name                = "Api"
-  config.api_base_url            = "/api"
+  config.api_base_url            = "/"
   config.doc_base_url            = "/apipie"
   config.reload_controllers      = false
   config.translate               = false

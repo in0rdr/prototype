@@ -9,23 +9,23 @@ class MitigatorsController < ApplicationController
   end
 
   # GET /mitigators/0x
-  api! "Show tasks of mitigator"
-  param :target_addr, String, desc: "Target account address (hex)"
+  api :GET, "/mitigators/:mitigator_addr", "Show tasks of mitigator"
+  param :mitigator_addr, String, desc: "Target account address (hex)"
   def show
     tasks = MitigationTask.where(mitigator: @mitigator_addr)
     render json: tasks
   end
 
   # GET /mitigators/0x/reputons
-  api! "Show reputation claims about mitigator"
-  param :target_addr, String, desc: "Target account address (hex)"
+  api :GET, "/mitigators/:mitigator_addr/reputons", "Show reputation claims about mitigator"
+  param :mitigator_addr, String, desc: "Target account address (hex)"
   def reputons
     render json: get_mitigator_reputons(@mitigator_addr)
   end
 
   # GET /mitigators/0x/reputation
-  api! "Show reputation for mitigator"
-  param :target_addr, String, desc: "Target account address (hex)"
+  api :GET, "/mitigators/:mitigator_addr/reputation", "Show reputation for mitigator"
+  param :mitigator_addr, String, desc: "Target account address (hex)"
   def reputation
     reputons = get_mitigator_reputons(@mitigator_addr)
     summary = reputation_summary(reputons)
