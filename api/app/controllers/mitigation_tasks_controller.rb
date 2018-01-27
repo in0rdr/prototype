@@ -9,6 +9,7 @@ class MitigationTasksController < ApplicationController
   before_action :set_mitigation_task, only: [:fetch, :show, :update, :destroy]
 
   # GET /mitigation_tasks
+  api! "Show all mitigation contracts"
   def index
     @mitigation_tasks = MitigationTask.all
 
@@ -16,11 +17,13 @@ class MitigationTasksController < ApplicationController
   end
 
   # GET /mitigation_tasks/1
+  api! "Show mitigation contract"
   def show
     render json: @mitigation_task
   end
 
   # GET /mitigation_tasks/1/fetch
+  api! "Fetch mitigation contract from blockchain"
   def fetch
     contract = Ethereum::Contract.create(
       name: 'Mitigation',
@@ -31,31 +34,6 @@ class MitigationTasksController < ApplicationController
     task = contract.call.tasks(@mitigation_task._id)
 
     render json: task
-  end
-
-  # POST /mitigation_tasks
-  def create
-    @mitigation_task = MitigationTask.new(mitigation_task_params)
-
-    if @mitigation_task.save
-      render json: @mitigation_task, status: :created, location: @mitigation_task
-    else
-      render json: @mitigation_task.errors, status: :unprocessable_entity
-    end
-  end
-
-  # PATCH/PUT /mitigation_tasks/1
-  def update
-    if @mitigation_task.update(mitigation_task_params)
-      render json: @mitigation_task
-    else
-      render json: @mitigation_task.errors, status: :unprocessable_entity
-    end
-  end
-
-  # DELETE /mitigation_tasks/1
-  def destroy
-    @mitigation_task.destroy
   end
 
   private

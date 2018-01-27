@@ -2,6 +2,7 @@ class CustomersController < ApplicationController
   before_action :set_customer, only: [:show, :reputons, :reputation]
 
   # GET /customers
+  api! "Show all targets and mitigators"
   def index
     targets = MitigationTask.distinct(:target)
     mitigators = MitigationTask.distinct(:mitigator)
@@ -12,6 +13,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x
+  api! "Show customer"
   def show
     target_tasks = MitigationTask.where(target: @customer_addr)
     mitigator_tasks = MitigationTask.where(mitigator: @customer_addr)
@@ -19,6 +21,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x/reputons
+  api! "Show customer reputons"
   def reputons
     reputons_earned_as_target = get_target_reputons(@customer_addr)
     reputons_earned_as_mitigator = get_mitigator_reputons(@customer_addr)
@@ -26,6 +29,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x/reputation
+  api! "Show customer reputation"
   def reputation
     reputons_earned_as_target = get_target_reputons(@customer_addr)
     reputons_earned_as_mitigator = get_mitigator_reputons(@customer_addr)
