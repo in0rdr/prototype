@@ -1,11 +1,36 @@
 class CustomersController < ApplicationController
-  before_action :set_customer
+  before_action :set_customer, only: [:show, :reputons, :reputation]
 
-  # GET /customers/0x/tasks
-  def tasks
-    tasks_as_target = MitigationTask.where(target: @customer_addr)
-    tasks_as_mitigator = MitigationTask.where(mitigator: @customer_addr)
-    render json: tasks_as_target.concat(tasks_as_mitigator)
+  # GET /customers
+  def index
+    targets = MitigationTask.distinct(:target)
+    mitigators = MitigationTask.distinct(:mitigator)
+
+    customers = targets + mitigators
+    # & returns the common elements
+    render json: customers - (targets & mitigators)
+  end
+
+  # GET /customers/0x
+  def show
+    target_tasks = MitigationTask.where(target: @customer_addr)
+    mitigator_tasks = MitigationTask.where(mitigator: @customer_addr)
+    render json: target_tasks.concat(mitigator_tasks)
+  end
+
+  # GET /customers/0x/reputons
+  def reputons
+    reputons_earned_as_target = get_target_reputons(@customer_addr)
+    reputons_earned_as_mitigator = get_mitigator_reputons(@customer_addr)
+    render json: reputons_earned_as_target.concat(reputons_earned_as_mitigator)
+  end
+
+  # GET /customers/0x/reputation
+  def reputation
+    reputons_earned_as_target = get_target_reputons(@customer_addr)
+    reputons_earned_as_mitigator = get_mitigator_reputons(@customer_addr)
+    all_reputons = reputons_earned_as_target.concat(reputons_earned_as_mitigator)
+    render json: reputation_summary(all_reputons)
   end
 
   private

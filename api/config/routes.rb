@@ -6,5 +6,13 @@ Rails.application.routes.draw do
     end
   end
 
-  get '/customers/:id/tasks', to: 'customers#tasks'
+  get '/customers', to: 'customers#index'
+  get '/customers/:id', to: 'customers#show'
+  get '/customers/:id/reputons', to: 'customers#reputons'
+  get '/customers/:id/reputation', to: 'customers#reputation'
+
+  get '/targets', to: 'targets#index'
+  get '/targets/:id', to: 'targets#show'
+  get '/targets/:id/reputons', to: 'targets#reputons'
+  get '/targets/:id/reputation', to: 'targets#reputation'
 end

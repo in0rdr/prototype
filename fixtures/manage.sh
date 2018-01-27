@@ -121,6 +121,7 @@ function start_api(){
 
   redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
   mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
+  ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
   #host_ip=`ip route|awk '/docker0/ { print $9 }'`
   geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
 
@@ -134,6 +135,7 @@ function start_api(){
 
   # run sidekiq worker and api
   docker run -d -p 3000:3000 -e "ETHEREUM_RPC_URL=http://$geth_ip:8545"\
+             -e "IPFS_GATEWAY=$ipfs_ip:8080"\
              -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
              -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234"\
              --name=$API prototype/api:latest
