@@ -6,7 +6,7 @@ ADDRESS = ENV['MITGN_ADDR']
 CLIENT = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
 
 class MitigationTasksController < ApplicationController
-  before_action :set_mitigation_task, only: [:fetch, :show, :update, :destroy]
+  before_action :set_mitigation_task, only: [:fetch, :show]
 
   # GET /mitigation_tasks
   api! "Show all mitigation contracts"
@@ -18,12 +18,14 @@ class MitigationTasksController < ApplicationController
 
   # GET /mitigation_tasks/1
   api! "Show mitigation contract"
+  param :id, Integer, desc: "Mitigation contract id"
   def show
     render json: @mitigation_task
   end
 
   # GET /mitigation_tasks/1/fetch
   api! "Fetch mitigation contract from blockchain"
+  param :id, Integer, desc: "Mitigation contract id"
   def fetch
     contract = Ethereum::Contract.create(
       name: 'Mitigation',
