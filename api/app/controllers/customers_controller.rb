@@ -13,7 +13,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x
-  api :GET, "/customers/:customer_addr", "Show customer"
+  api :GET, "customers/:customer_addr", "Show customer"
   param :customer_addr, String, desc: "Customer account address (hex)"
   def show
     target_tasks = MitigationTask.where(target: @customer_addr)
@@ -22,7 +22,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x/reputons
-  api :GET, "/customers/:customer_addr/reputons", "Show reputation claims about customer"
+  api :GET, "customers/:customer_addr/reputons", "Show reputation claims about customer"
   param :customer_addr, String, desc: "Customer account address (hex)"
   def reputons
     reputons_earned_as_target = get_target_reputons(@customer_addr)
@@ -31,7 +31,7 @@ class CustomersController < ApplicationController
   end
 
   # GET /customers/0x/reputation
-  api :GET, "/customers/:customer_addr/reputation", "Show customer reputation"
+  api :GET, "customers/:customer_addr/reputation", "Show customer reputation"
   param :customer_addr, String, desc: "Customer account address (hex)"
   def reputation
     reputons_earned_as_target = get_target_reputons(@customer_addr)
