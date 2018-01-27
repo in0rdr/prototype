@@ -36,15 +36,17 @@ module ReputonUtils
   end
 
   def reputation_summary(reputons)
-    logger.debug reputons
-    result = { summary: 
-                 { positive: 0,
-                   neutral: 0,
-                   negative: 0 },
-               source:
-                 { positive: [],
-                   neutral: [],
-                   negative: [] } }
+    summary = Summary.new ({
+      rating_summary_attributes: {
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      }, rating_source_attributes: {
+        positive: [],
+        neutral: [],
+        negative: []
+      }
+    })
 
     reputons.each do |r|
       if valid_reputon(r[:ipfs_key])
@@ -53,24 +55,24 @@ module ReputonUtils
         # summarize valid feedbacks
         reputon = parse_reputon(r[:ipfs_key])
         if reputon["rating"] == 1
-          result[:summary][:positive] += 1
-          result[:source][:positive] << r[:task_id]
+          summary.rating_summary.positive += 1
+          summary.rating_source.positive << r[:task_id]
         elsif reputon["rating"] == 0
-          result[:summary][:negative] += 1
-          result[:source][:negative] << r[:task_id]
+          summary.rating_summary.negative += 1
+          summary.rating_source.negative << r[:task_id]
         else
-          result[:summary][:neutral] += 1
-          result[:source][:neutral] << r[:task_id]
+          summary.rating_summary.neutral += 1
+          summary.rating_source.neutral << r[:task_id]
           logger.debug "Neutral rating"
         end
       else
         logger.debug "Invalid reputon media type for hash: #{r}"
-        result[:summary][:neutral] += 1
-        result[:source][:neutral] << r[:task_id]
+        summary.rating_summary.neutral += 1
+        summary.rating_source.neutral << r[:task_id]
       end
     end
 
-    result
+    summary
   end
 
   def parse_reputon(ipfs_hash)
