@@ -1,5 +1,7 @@
 Apipie.configure do |config|
-  config.app_name                = "Api"
+  config.app_name                = "Reputation API"
+  config.app_info["1.0"]         = "Reputation API for Cooperative DDoS Defense"
+  config.copyright               = "&copy; 2018 Andreas Gruhler"
   config.api_base_url            = "/"
   config.doc_base_url            = "/apipie"
   config.reload_controllers      = false
