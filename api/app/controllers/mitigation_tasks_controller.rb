@@ -1,9 +1,4 @@
-require 'ethereum.rb'
-
-BILDPATH = File.expand_path('contracts/build')
-CONTRACT_ABI = JSON.parse(File.read(File.join(BILDPATH, "Mitigation.json")))['interface']
-ADDRESS = ENV['MITGN_ADDR']
-CLIENT = Ethereum::HttpClient.new(ENV['ETHEREUM_RPC_URL'])
+require_relative '../lib/decentral'
 
 class MitigationTasksController < ApplicationController
   before_action :set_mitigation_task, only: [:fetch, :show]
@@ -27,14 +22,7 @@ class MitigationTasksController < ApplicationController
   api! "Fetch mitigation contract from blockchain"
   param :id, Integer, desc: "Mitigation contract id"
   def fetch
-    contract = Ethereum::Contract.create(
-      name: 'Mitigation',
-      address: ADDRESS,
-      abi: CONTRACT_ABI,
-      client: CLIENT,
-    )
-    task = contract.call.tasks(@mitigation_task._id)
-
+    task = Decentral::Task::fetch_task(@mitigation_task._id)
     render json: task
   end
 
