@@ -4,6 +4,7 @@ Apipie.configure do |config|
   config.copyright               = "&copy; 2018 Andreas Gruhler"
   config.api_base_url            = "/"
   config.doc_base_url            = "/apipie"
+  config.validate                = false
   config.reload_controllers      = false
   config.translate               = false
   #config.markup                  = Apipie::Markup::Markdown.new
