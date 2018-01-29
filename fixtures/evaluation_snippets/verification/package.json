@@ -1,0 +1,22 @@
+{
+  "name": "metric-verification-algorithm",
+  "version": "1.0.0",
+  "description": "Algorithm to verifiy a reputation summary consumed through the reputation API",
+  "scripts": {
+    "restart": "killall node; npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/in0rdr/prototype.git"
+  },
+  "keywords": [],
+  "author": "Andreas Gruhler",
+  "bugs": {
+    "url": "https://github.com/in0rdr/prototype/issues"
+  },
+  "homepage": "https://github.com/in0rdr/prototype#readme",
+  "dependencies": {
+    "ipfs-api": "^17.2.7",
+    "web3": "^0.20.2"
+  }
+}
