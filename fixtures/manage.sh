@@ -15,6 +15,8 @@ function down(){
 }
 
 function clean_all(){
+  #docker volume ls -qf dangling=true | xargs -r docker volume rm
+
   # Clean all containers and prototype images
   clean_containers
 
