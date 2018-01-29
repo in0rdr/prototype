@@ -16,6 +16,7 @@
   },
   "homepage": "https://github.com/in0rdr/prototype#readme",
   "dependencies": {
+    "ethereum-input-data-decoder": "0.0.3",
     "ipfs-api": "^17.2.7",
     "web3": "^0.20.2"
   }
