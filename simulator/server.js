@@ -31,6 +31,7 @@ var completedTasks = [];
 
 new Promise(async (res) => {
     // deploy contracts
+    console.log("Initializing, deploying smart contracts...");
     ctr = await init(accounts[0]);
     console.log("Deployed the contract instances at:");
     console.log(" Identity:\t", ctr.id.address);
@@ -59,32 +60,47 @@ new Promise(async (res) => {
     utils.enableLogger();
 }).then(async () => {
     // create customer accounts
-    console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 11);
+    //console.log("Creating customer accounts...");
+    //return createCustomers(ctr.id, 50);
+    return false;
 }).then((newCustomers) => {
-    // add new customers to the pool of all customers
-    customers = customers.concat(newCustomers);
-    console.log("Created customers:", newCustomers);
+    if (newCustomers) {
+        // add new customers to the pool of all customers
+        customers = customers.concat(newCustomers);
+        console.log("Created customers:", newCustomers);
 
-    // select customer profiles/strategies
-    console.log("Selecting customer strategies...");
-    customers[0] = new Target.UndecidedTarget(customers[0]);
-    customers[1] = new Target.SelfishTarget(customers[1]);
-    customers[2] = new Target.SatisfiedTarget(customers[2]);
-    customers[3] = new Target.DissatisfiedTarget(customers[3]);
-    customers[4] = new Target.IrrationalTarget(customers[4]);
-    customers[5] = new Mitigator.UndecidedMitigator(customers[5]);
-    customers[6] = new Mitigator.LazyMitigator(customers[6]);
-    customers[7] = new Mitigator.SelfishMitigator(customers[7]);
-    customers[8] = new Mitigator.RationalMitigator(customers[8]);
-    customers[9] = new Mitigator.AltruisticMitigator(customers[9]);
-    customers[10] = new Mitigator.MaliciousMitigator(customers[10]);
-    console.log("Customer types:", customers.map(c => c.constructor.name));
+        // select customer profiles/strategies
+        console.log("Selecting customer strategies...");
+        console.log("Customer id\t Customer addr\t Customer strategy");
+
+        for (var i = 0; i < 21; i++) {
+            customers[i] = new Mitigator.RationalMitigator(customers[i]);
+            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 21; i < 41; i++) {
+            customers[i] = new Target.SatisfiedTarget(customers[i]);
+            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+
+        customers[41] = new Target.UndecidedTarget(customers[41]);
+        customers[42] = new Target.SelfishTarget(customers[42]);
+        customers[43] = new Target.DissatisfiedTarget(customers[43]);
+        customers[44] = new Target.IrrationalTarget(customers[44]);
+        customers[45] = new Mitigator.UndecidedMitigator(customers[45]);
+        customers[46] = new Mitigator.LazyMitigator(customers[46]);
+        customers[47] = new Mitigator.SelfishMitigator(customers[47]);
+        customers[48] = new Mitigator.AltruisticMitigator(customers[48]);
+        customers[49] = new Mitigator.MaliciousMitigator(customers[49]);
+        for (var i = 41; i < 50; i++)
+            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+
+        //console.log("Customer types:", customers.map(c => c.constructor.name));
+    }
 }).then(() => {
     // create new tasks if needed
     //replenishTasks();
-    //setTimeout(replenishTasks, 30000);
-    testAll();
+    setTimeout(replenishTasks, 30000);
+    //testAll();
 });
 
 function attackerFile() {
@@ -130,25 +146,26 @@ async function testAll() {
 }
 
 async function replenishTasks() {
-    if (tasks.length >= 10) {
-        console.log("Still 10 task in pipelne, checking again in 30s..");
+    const replThreshold = 5;
+
+    if (tasks.length >= replThreshold) {
+        console.log("Still", replThreshold ,"tasks in pipeline, checking again in 30s..");
     } else {
-        console.log("Not enough tasks, creating new one..");
+        console.log("Less than", replThreshold, "tasks, creating new one..");
         var ipfsHash = await attackerFile();
 
         // select random customers profile
-        /*var target = mitigator = new Customer({});
-
+        var target = mitigator = new Customer({});
         while (!(Object.getPrototypeOf(target) instanceof Target.Target
             && Object.getPrototypeOf(mitigator) instanceof Mitigator.Mitigator)) {
             target = customers[Math.floor(Math.random()*customers.length)];
             mitigator = customers[Math.floor(Math.random()*customers.length)];
             console.log("Sampled new customers")
-        }*/
+        }
 
         // deterministic customer selection for testing
-        var target = customers[2]
-        var mitigator = customers[8]
+        //var target = customers[2]
+        //var mitigator = customers[8]
 
         // fund target
         var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});

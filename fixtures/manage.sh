@@ -146,8 +146,8 @@ function start_api(){
 }
 
 function restart_api(){
-  docker stop $API #$REDIS $MONGO
-  docker rm $API #$REDIS $MONGO
+  docker stop $API $REDIS $MONGO
+  docker rm $API $REDIS $MONGO
   docker rmi prototype/api
   start_api
 }
