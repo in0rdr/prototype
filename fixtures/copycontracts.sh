@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 CONTRACT_DIRS=("../simulator/contracts/build/" "../api/contracts/build/")
 
