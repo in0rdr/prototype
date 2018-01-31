@@ -2,8 +2,10 @@ const CONTRACT_BUILD_PATH = './contracts/build/';
 const GAS_EST = 3000000;
 
 var args = process.argv.slice(2);
+
+// ipfs connection
 var ipfsAPI = require('ipfs-api');
-var ipfs = ipfsAPI({host: args[1], port: '5001', protocol: 'http'})
+var ipfs = ipfsAPI({host: args[1], port: '5001', protocol: 'http'});
 
 var fs = require('fs');
 var spawn = require("child_process").spawn;
@@ -60,7 +62,7 @@ new Promise(async (res) => {
     utils.enableLogger();
 }).then(async () => {
     // create customer accounts
-    //console.log("Creating customer accounts...");
+    console.log("Creating customer accounts...");
     return createCustomers(ctr.id, 50);
     //return false;
 }).then((newCustomers) => {
@@ -91,8 +93,9 @@ new Promise(async (res) => {
         customers[47] = new Mitigator.SelfishMitigator(customers[47]);
         customers[48] = new Mitigator.AltruisticMitigator(customers[48]);
         customers[49] = new Mitigator.MaliciousMitigator(customers[49]);
-        for (var i = 41; i < 50; i++)
+        for (var i = 41; i < 50; i++) {
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
 
         //console.log("Customer types:", customers.map(c => c.constructor.name));
     }
@@ -104,17 +107,17 @@ new Promise(async (res) => {
 });
 
 function attackerFile() {
-        // prepare an attacker file
-        var createIps = spawn('python', ['createIPs.py', 1, 5]);
-        var ipfsHash = new Promise((resolve, reject) => {
-            createIps.stdout.on('data', function (data){
-                ipfs.files.add(new Buffer(data), async (err, result) => {
-                    if (err) reject(err);
-                    resolve(result[0].hash);
-                });
+    // prepare an attacker file
+    var createIps = spawn('python', ['createIPs.py', 1, 5]);
+    var ipfsHash = new Promise((resolve, reject) => {
+        createIps.stdout.on('data', function (data){
+            ipfs.files.add(new Buffer(data), async (err, result) => {
+                if (err) reject(err);
+                resolve(result[0].hash);
             });
         });
-        return ipfsHash;
+    });
+    return ipfsHash;
 }
 
 async function testAll() {
