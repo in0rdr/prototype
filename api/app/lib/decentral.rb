@@ -29,7 +29,7 @@ module Decentral
       puts "Max known tasks in local db: #{known_task_count}"
 
       (known_task_count + 1...task_count).each do |task_index|
-        save_task(task_index, @contract)
+        save_task(task_index)
       end
     end
 
