@@ -61,8 +61,8 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     //console.log("Creating customer accounts...");
-    //return createCustomers(ctr.id, 50);
-    return false;
+    return createCustomers(ctr.id, 50);
+    //return false;
 }).then((newCustomers) => {
     if (newCustomers) {
         // add new customers to the pool of all customers
