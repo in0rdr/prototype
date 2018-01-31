@@ -99,7 +99,7 @@ new Promise(async (res) => {
 }).then(() => {
     // create new tasks if needed
     //replenishTasks();
-    setTimeout(replenishTasks, 30000);
+    setInterval(replenishTasks, 30000);
     //testAll();
 });
 
