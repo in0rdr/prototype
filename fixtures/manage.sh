@@ -88,7 +88,7 @@ function restart_eth(){
 
 function start_sim(){
   compile_contracts
-  start_eth
+  #start_eth
   docker run -d --name=$IPFS ipfs/go-ipfs
 
   cd simulator

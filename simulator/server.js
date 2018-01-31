@@ -75,11 +75,11 @@ new Promise(async (res) => {
 
         for (var i = 0; i < 21; i++) {
             customers[i] = new Mitigator.RationalMitigator(customers[i]);
-            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
         for (var i = 21; i < 41; i++) {
             customers[i] = new Target.SatisfiedTarget(customers[i]);
-            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
 
         customers[41] = new Target.UndecidedTarget(customers[41]);
@@ -92,7 +92,7 @@ new Promise(async (res) => {
         customers[48] = new Mitigator.AltruisticMitigator(customers[48]);
         customers[49] = new Mitigator.MaliciousMitigator(customers[49]);
         for (var i = 41; i < 50; i++)
-            console.log(i, "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
 
         //console.log("Customer types:", customers.map(c => c.constructor.name));
     }
