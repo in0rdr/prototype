@@ -2,7 +2,7 @@
 customers=`curl -sH "Accept:application/json" http://localhost:3000/customers`;
 jq_customers=`echo $customers | jq -r '.[]'`;
 
-printf "customer address\t\t\t\tpositive\tneutral\tnegative\ttotal\n";
+printf "address,positive,neutral,negative,total\n";
 for c in $jq_customers; do
   reputation_summary=`curl -sH "Accept:application/json" \
                       http://localhost:3000/customers/$c/reputation`;
@@ -10,5 +10,5 @@ for c in $jq_customers; do
   neutral=`echo $reputation_summary | jq -r '.rating_summary.neutral'`;
   negative=`echo $reputation_summary | jq -r '.rating_summary.negative'`;
   total=$((positive + neutral + negative))
-  printf "%s\t%d\t\t%d\t%d\t\t%d\n" $c $positive $neutral $negative $total;
+  printf "%s,%d,%d,%d,%d\n" $c $positive $neutral $negative $total;
 done
