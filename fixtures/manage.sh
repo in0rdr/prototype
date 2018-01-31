@@ -6,6 +6,8 @@
 # read container names
 source .env
 
+HOST_IP=`ip route|awk '/docker0/ { print $9 }'`
+
 function down(){
   # Stop all prototype containers
   lines=`docker ps -a | grep 'prototype_' | wc -l`
@@ -97,9 +99,9 @@ function start_sim(){
   
   # deploy the simulator
   sleep 3
-  peer1_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  #peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
   ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
-  docker run -d -e geth_peer=$peer1_ip -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
+  docker run -d -e geth_peer=$HOST_IP -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 }
 
 function restart_sim(){
@@ -124,8 +126,7 @@ function start_api(){
   redis_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $REDIS`
   mongo_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MONGO`
   ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
-  #host_ip=`ip route|awk '/docker0/ { print $9 }'`
-  geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
+  #geth_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER1`
 
   # read contract interfaces
   if [ -z "$1" ]; then
@@ -136,7 +137,7 @@ function start_api(){
   fi
 
   # run sidekiq worker and api
-  docker run -d -p 3000:3000 -e "ETHEREUM_RPC_URL=http://$geth_ip:8545"\
+  docker run -d -p 3000:3000 -e "ETHEREUM_RPC_URL=http://$HOST_IP:8545"\
              -e "IPFS_GATEWAY=$ipfs_ip:8080"\
              -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
              -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234"\
