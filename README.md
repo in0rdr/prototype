@@ -12,8 +12,8 @@
 ## Monitoring the Ethereum Infrastructure
 
 ```
-source .env
 cd fixtures
+source .env
 ./manage.sh netstats
 ```
 
@@ -23,13 +23,13 @@ Run `docker logs $NETSTATS_INTEL | head -n1` to get netstat url:
 Running eth-net-intelligence-api with WS_SERVER http://172.17.0.6:3000
 ```
 
-The setup comprises two geth nodes, "$PEER1=prototype_peer1" and "$PEER2=prototype_peer2". The former is a mining peer.
+The setup comprises two geth nodes, `$PEER1=prototype_peer1` and `$PEER2=prototype_peer2`. The former is a mining peer.
+
+## Monitoring the Simulator
+`cd fixtures && source .env && watch -n 1 docker logs $SIM` and wait for the contracts to be deployed.
+
+Run [Remix IDE (http)](http://remix.ethereum.org) and connect with Web3 to play with the contracts. You can directly use the default `http://127.0.0.1:8545` connection, because port mapping is enabled for `$PEER1`.
 
 ## Solidity Tests
 - `npm run test` starts testrpc and runs the tests
 - `npm run coverage` to see test coverage
-
-## Simulator
-`source .env && watch -n 1 docker logs $SIM` and wait for the contracts to be deployed.
-
-Run [Remix IDE (http)](http://remix.ethereum.org) and connect with Web3 to play with the contracts. You can directly use the default `http://127.0.0.1:8545` connection, because port mapping is enabled for `$PEER1`.
