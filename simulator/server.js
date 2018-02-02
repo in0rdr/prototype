@@ -63,7 +63,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 50);
+    return createCustomers(ctr.id, 140);
     //return false;
 }).then((newCustomers) => {
     if (newCustomers) {
