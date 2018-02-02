@@ -75,16 +75,53 @@ new Promise(async (res) => {
         console.log("Selecting customer strategies...");
         console.log("Customer id\t Customer addr\t Customer strategy");
 
-        for (var i = 0; i < 21; i++) {
+        for (var i = 0; i < 20; i++) {
             customers[i] = new Mitigator.RationalMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 21; i < 41; i++) {
+        for (var i = 20; i < 40; i++) {
             customers[i] = new Target.SatisfiedTarget(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
 
-        customers[41] = new Target.UndecidedTarget(customers[41]);
+        for (var i = 40; i < 50; i++) {
+            customers[i] = new Target.UndecidedTarget(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 50; i < 60; i++) {
+            customers[i] = new Target.SelfishTarget(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 60; i < 70; i++) {
+            customers[i] = new Target.DissatisfiedTarget(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 70; i < 80; i++) {
+            customers[i] = new Target.IrrationalTarget(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 80; i < 90; i++) {
+            customers[i] = new Target.UndecidedMitigator(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 90; i < 100; i++) {
+            customers[i] = new Target.LazyMitigator(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 110; i < 120; i++) {
+            customers[i] = new Target.SelfishMitigator(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 120; i < 130; i++) {
+            customers[i] = new Target.AltruisticMitigator(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+        for (var i = 130; i < 140; i++) {
+            customers[i] = new Target.MaliciousMitigator(customers[i]);
+            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
+        }
+
+        /*customers[41] = new Target.UndecidedTarget(customers[41]);
         customers[42] = new Target.SelfishTarget(customers[42]);
         customers[43] = new Target.DissatisfiedTarget(customers[43]);
         customers[44] = new Target.IrrationalTarget(customers[44]);
@@ -95,7 +132,7 @@ new Promise(async (res) => {
         customers[49] = new Mitigator.MaliciousMitigator(customers[49]);
         for (var i = 41; i < 50; i++) {
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
+        }*/
 
         //console.log("Customer types:", customers.map(c => c.constructor.name));
     }
