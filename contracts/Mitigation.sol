@@ -115,6 +115,10 @@ contract Mitigation {
         require(Identity(_identity).isCustomer(_attackTarget));
         require(Identity(_identity).isCustomer(_mitigator));
 
+        // allowing to create contracts for yourself
+        // creates an opportunity to boost reputation
+        require(_attackTarget != _mitigator);
+
         //creators[tasks.length] = msg.sender;
         tasks.push(Task(_attackTarget,
             _mitigator,
