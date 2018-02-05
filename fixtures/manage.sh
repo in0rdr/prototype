@@ -135,11 +135,14 @@ function start_api(){
   if [ -z "$2" ]; then
     mitgn_addr=`docker logs $SIM | grep ' Mitigation:' | awk '{print $2}'`
   fi
+  if [ -z "$3" ]; then
+    id_addr=`docker logs $SIM | grep ' Identity:' | awk '{print $2}'`
+  fi
 
   # run sidekiq worker and api
   docker run -d -p 3000:3000 -e "ETHEREUM_RPC_URL=http://$HOST_IP:8545"\
              -e "IPFS_GATEWAY=$ipfs_ip:8080"\
-             -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
+             -e "IDENTITY_ADDR=$id_addr" -e "MITGN_ADDR=$mitgn_addr" -e "REP_ADDR=$rep_addr"\
              -e "REDIS_URL=redis://$redis_ip:6379/0" -e "MONGODB_IP=$mongo_ip" -e "MONGODB_USER=root" -e "MONGODB_PWD=1234"\
              --name=$API prototype/api:latest
   # docker exec -it $API tail -F log/sidekiq.log -n 50

@@ -11,10 +11,12 @@ contract('Mitigation', function(accounts) {
     await id.newCustomer.sendTransaction();
     await id.newCustomer.sendTransaction({from: accounts[1]});
 
-    var a = await id.getCustomerAddr.call(1);
-    assert.equal(a, accounts[0], "first customer should be on first account");
-    a = await id.getCustomerAddr.call(2);
-    assert.equal(a, accounts[1], "second customer should be on second account");
+    var customer = await id.customers(1);
+    var address = customer[0];
+    assert.equal(address, accounts[0], "first customer should be on first account");
+    customer = await id.customers(2);
+    address = customer[0];
+    assert.equal(address, accounts[1], "second customer should be on second account");
 
     var m = await Mitigation.new();
     await m.newTask.sendTransaction(id.address, accounts[0], accounts[1], 100, 200, web3.toWei(1, "ether"), "ipfs-attackers-file-hash");

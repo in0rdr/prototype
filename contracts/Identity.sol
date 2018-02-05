@@ -4,30 +4,27 @@ contract Identity {
 
     struct Customer {
         address addr;
+        uint created;
     }
 
-    Customer[] private customers;
+    Customer[] public customers;
     mapping(address => uint) customerIds;
     event CustomerCreated(uint _custId, address _custAddr);
 
     function Identity() public {
-        customers.push(Customer(0));
+        customers.push(Customer(0, now));
     }
 
     function newCustomer() external {
         require(!isCustomer(msg.sender));
 
         customerIds[msg.sender] = customers.length;
-        customers.push(Customer(msg.sender));
+        customers.push(Customer(msg.sender, now));
         CustomerCreated(customers.length - 1, msg.sender);
     }
 
     function isCustomer(address addr) public constant returns (bool) {
         return (customerIds[addr] != 0);
-    }
-
-    function getCustomerAddr(uint _id) public constant returns (address) {
-        return customers[_id].addr;
     }
 
     function getCustomerId(address addr) public constant returns (uint) {

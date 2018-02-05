@@ -11,7 +11,8 @@ contract('Identity', function(accounts) {
     assert(r, "customer should be created");
     var i = await id.getCustomerId.call(accounts[0]);
     assert.equal(i, 1, "should assign customer id 1");
-    var a = await id.getCustomerAddr.call(1);
-    assert.equal(a, accounts[0], "customer should be on first account");
+    var customer = await id.customers(1);
+    var address = customer[0];
+    assert.equal(address, accounts[0], "customer should be on first account");
   });
 });

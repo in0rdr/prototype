@@ -1,5 +1,5 @@
 class MitigatorsController < ApplicationController
-  before_action :set_mitigator, only: [:show, :reputons, :reputation]
+  before_action :set_mitigator, only: [:fetch, :show, :reputons, :reputation]
 
   # GET /mitigators
   api! "Show all mitigators"
@@ -10,25 +10,33 @@ class MitigatorsController < ApplicationController
 
   # GET /mitigators/0x
   api :GET, "mitigators/:mitigator_addr", "Show tasks of mitigator"
-  param :mitigator_addr, String, desc: "Target account address (hex)"
+  param :mitigator_addr, String, desc: "Mitigator account address (hex)"
   def show
     tasks = MitigationTask.where(mitigator: @mitigator_addr)
     render json: tasks
   end
 
+  # GET /mitigators/0x/fetch
+  api :GET, "mitigators/:mitigator_addr/fetch", "Fetch mitigator from blockchain"
+  param :mitigator_addr, String, desc: "Mitigator account address (hex)"
+  def fetch
+    customer = Decentral::Identity::get_customer(@mitigator_addr)
+    render json: customer
+  end
+
   # GET /mitigators/0x/reputons
   api :GET, "mitigators/:mitigator_addr/reputons", "Show reputation claims about mitigator"
-  param :mitigator_addr, String, desc: "Target account address (hex)"
+  param :mitigator_addr, String, desc: "Mitigator account address (hex)"
   def reputons
-    render json: get_mitigator_reputons(@mitigator_addr)
+    render json: Decentral::Reputon::get_mitigator_reputons(@mitigator_addr)
   end
 
   # GET /mitigators/0x/reputation
   api :GET, "mitigators/:mitigator_addr/reputation", "Show reputation for mitigator"
-  param :mitigator_addr, String, desc: "Target account address (hex)"
+  param :mitigator_addr, String, desc: "Mitigator account address (hex)"
   def reputation
-    reputons = get_mitigator_reputons(@mitigator_addr)
-    summary = reputation_summary(reputons)
+    reputons = Decentral::Reputon::get_mitigator_reputons(@mitigator_addr)
+    summary = Decentral::Reputon::reputation_summary(reputons)
     render json: summary
   end
 

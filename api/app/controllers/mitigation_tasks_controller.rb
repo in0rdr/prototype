@@ -1,4 +1,4 @@
-require_relative '../lib/decentral'
+require 'decentral'
 
 class MitigationTasksController < ApplicationController
   before_action :set_mitigation_task, only: [:fetch, :show]
@@ -22,7 +22,7 @@ class MitigationTasksController < ApplicationController
   api! "Fetch mitigation contract from blockchain"
   param :id, Integer, desc: "Mitigation contract id"
   def fetch
-    task = Decentral::Task::fetch_task(@mitigation_task._id)
+    task = Decentral::Task::get_task(@mitigation_task._id)
     render json: task
   end
 
