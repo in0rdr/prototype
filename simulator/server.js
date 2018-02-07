@@ -58,7 +58,7 @@ new Promise(async (res) => {
     Task = require('./Task.js')(web3, ctr, GAS_EST);
 
     // setup unhandled promise exception logger
-    utils = require('./utils.js')(web3, ctr, GAS_EST);
+    utils = require('./utils.js')(web3, ctr, GAS_EST, args[2]);
     utils.enableLogger();
 }).then(async () => {
     // create customer accounts

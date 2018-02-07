@@ -17,6 +17,7 @@
   "homepage": "https://github.com/in0rdr/prototype#readme",
   "dependencies": {
     "ipfs-api": "^17.2.7",
+    "request": "^2.83.0",
     "web3": "^0.20.2"
   }
 }

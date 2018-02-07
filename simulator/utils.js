@@ -1,3 +1,21 @@
+var request = require('request');
+var API_URL;
+
+function getReputation(_customer) {
+    var addr = _customer.addr.slice(2, _customer.addr.length);
+    var url = API_URL + "/customers/" + addr + "/reputation";
+    return new Promise((resolve, reject) => {
+        request(url, function(error, response, body) {
+            if (error) reject(error);
+            var reputation = JSON.parse(body).rating_summary;
+            // reputation in range [0,1]
+            // 0.5 is neutral
+            var beta = (reputation.positive + 1) / (reputation.positive + reputation.negative + 2);
+            resolve(beta);
+        });
+    });
+}
+
 async function rate(_value, _rater, _taskId, _assertion) {
     var reputonHash = await new Promise((resolve, reject) => {
         ipfs.files.add(new Buffer(`{
@@ -41,12 +59,14 @@ function balances(_accounts) {
     return balances;
 }
 
-module.exports = function(_web3, _ctr, _GAS_EST) {
+module.exports = function(_web3, _ctr, _GAS_EST, _api_url) {
     web3 = _web3;
     ctr = _ctr;
     GAS_EST = _GAS_EST;
+    API_URL = _api_url;
 
     var module = {};
+    module.getReputation = getReputation;
     module.rate = rate;
     module.enableLogger = enableLogger;
     module.balances = balances;

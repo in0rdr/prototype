@@ -17,10 +17,18 @@ class Mitigator extends Customer {
     }
 
     async approve(_task) {
-        var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-        console.log("[", _task.id, "]", this.constructor.name, "\t approves");
-        this.nextMove[_task.id] = 'uploadProof';
-        return await web3.eth.getTransactionReceiptMined(tx);
+        var receipt = Promise.resolve({});
+        var reputation = await utils.getReputation(_task.tar);
+        console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
+        if (reputation < 0.5) {
+            this.nextMove[_task.id] = 'complete';
+        } else {
+            var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
+            console.log("[", _task.id, "]", this.constructor.name, "\t approves");
+            this.nextMove[_task.id] = 'uploadProof';
+            receipt = await web3.eth.getTransactionReceiptMined(tx);
+        }
+        return receipt;
     }
 
     async uploadProof(_task) {

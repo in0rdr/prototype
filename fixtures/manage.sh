@@ -101,7 +101,7 @@ function start_sim(){
   sleep 3
   #peer2_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $PEER2`
   ipfs_ip=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $IPFS`
-  docker run -d -e geth_peer=$HOST_IP -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
+  docker run -d -e api_url="http://$HOST_IP:3000" -e geth_peer=$HOST_IP -e ipfs_peer=$ipfs_ip --name=$SIM prototype/simulator:latest
 }
 
 function restart_sim(){
