@@ -20,7 +20,7 @@ class Target extends Customer {
         var receipt = Promise.resolve({});
         var reputation = await utils.getReputation(_task.mit);
         console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
-        if (reputation < 0.5) {
+        if (reputation < 0.3) {
             this.nextMove[_task.id] = 'complete';
         } else if (!ctr.mitgn.aborted(_task.id)) {
             console.log("[", _task.id, "]", this.constructor.name, "\t starts");
