@@ -63,7 +63,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 140);
+    return createCustomers(ctr.id, 130);
     //return false;
 }).then((newCustomers) => {
     if (newCustomers) {
@@ -108,15 +108,15 @@ new Promise(async (res) => {
             customers[i] = new Mitigator.LazyMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 110; i < 120; i++) {
+        for (var i = 100; i < 110; i++) {
             customers[i] = new Mitigator.SelfishMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 120; i < 130; i++) {
+        for (var i = 110; i < 120; i++) {
             customers[i] = new Mitigator.AltruisticMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 130; i < 140; i++) {
+        for (var i = 120; i < 130; i++) {
             customers[i] = new Mitigator.MaliciousMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
