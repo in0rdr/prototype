@@ -43,7 +43,7 @@ new Promise(async (res) => {
 }).then(() => {
     // watch events
     console.log("Setting up event filters:");
-    taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
+    //taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
     /*console.log(" >> Set up TaskCreated filter");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
     console.log(" >> Set up TaskStarted filter");
@@ -146,6 +146,7 @@ async function testAll() {
     var mitigators = customers.slice(4, 8);
     console.log(mitigators);
     var tx;
+    var i = 0;
     for (t of targets) {
         for (m of mitigators) {
             var ipfsHash = await attackerFile();
@@ -159,14 +160,51 @@ async function testAll() {
                 ctr.id.address,
                 t.addr,
                 m.addr,
-                5,
-                17,
-                27,
+                3,
+                6,
+                9,
                 web3.toWei(1, "ether"),
                 ipfsHash,
                 {from: t.addr, gas: GAS_EST});
             await web3.eth.getTransactionReceiptMined(tx);
             console.log("Created new task for target", t.constructor.name, "and", m.constructor.name);
+
+            var task = new Task.Task(i,
+                customerWithAddr(t.addr),
+                customerWithAddr(m.addr));
+            tasks.push(task);
+            i++;
+
+            var move, currentPlayer;
+            var startTime, serviceDeadline, validationDeadline, ratingDeadline;
+            while (true) {
+                currentPlayer = task.nextCustomer;
+                startTime = ctr.mitgn.getStartTime(task.id).toNumber();
+                serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
+                validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+                ratingDeadline = startTime + ctr.mitgn.getRatingDeadline(task.id).toNumber();
+
+                console.log("----------------------------------------");
+                console.log(" Task", task.id, ", next move");
+                console.log("  - Profile:\t", currentPlayer.constructor.name);
+                console.log("  - Move:\t", currentPlayer.nextMove);
+                console.log("  - Time:\t");
+                console.log("    - Block:\t\t", web3.eth.blockNumber);
+                console.log("    - Start:\t\t", startTime);
+                console.log("    - ServiceDl:\t\t", serviceDeadline);
+                console.log("    - ValidationDl:\t", validationDeadline);
+                console.log("    - RatingDl:\t", ratingDeadline);
+
+                move = await task.advance(tasks, finishedTasks);
+                if (typeof move.finishedTasks !== 'undefined') {
+                    break;
+                }
+            }
+
+            finishedTasks = move.finishedTasks;
+            tasks = move.activeTasks;
+            //console.log("Finished tasks:", finishedTasks);
+            console.log("Remaining active tasks:", tasks);
         }
     }
 }
@@ -259,10 +297,7 @@ function watchEvents(_contract, _event) {
                         var move, currentPlayer;
                         var startTime, serviceDeadline, validationDeadline, ratingDeadline;
                         while (true) {
-                            console.log("Endless loop running..");
                             currentPlayer = task.nextCustomer;
-                            console.log("Endless loop, current player is", currentPlayer.constructor.name);
-
                             startTime = ctr.mitgn.getStartTime(task.id).toNumber();
                             serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
                             validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
