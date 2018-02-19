@@ -201,7 +201,7 @@ contract Mitigation {
     function escalate(uint _id) external {
         // dispute rating and payments
         // todo, requires:
-        //  block.number > validation deadline
+        //  block.number > rating deadline
         //  AND rated(msg.sender)
     }
 

@@ -12,28 +12,28 @@ class Mitigator extends Customer {
         return Promise.resolve({});
     }
 
-    abort(_task) {
-        return super.abort(_task.id, ctr.mitgn, web3, GAS_EST);
+    complete(_task) {
+        return super.complete(_task.id, ctr, web3, GAS_EST);
     }
 
     async approve(_task) {
         var receipt = Promise.resolve({});
-        var reputation = await utils.getReputation(_task.tar);
-        console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
-        if (reputation < 0.3) {
-            this.nextMove[_task.id] = 'complete';
-        } else {
+        //var reputation = await utils.getReputation(_task.tar);
+        //console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
+        //if (reputation < 0.3) {
+        //    this.nextMove[_task.id] = 'finish';
+        //} else {
             var tx = ctr.mitgn.approve.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
             console.log("[", _task.id, "]", this.constructor.name, "\t approves");
             this.nextMove[_task.id] = 'uploadProof';
             receipt = await web3.eth.getTransactionReceiptMined(tx);
-        }
+        //}
         return receipt;
     }
 
     async uploadProof(_task) {
         var receipt = Promise.resolve({});
-        if (!ctr.mitgn.aborted(_task.id)) {
+        if (!ctr.mitgn.completed(_task.id)) {
             var proofHash = await new Promise((resolve, reject) => {
                 ipfs.files.add(new Buffer(`dummy-configuration`), (err, result) => {
                     if (err) reject(err);
@@ -45,7 +45,7 @@ class Mitigator extends Customer {
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
         } else {
-            this.nextMove[_task.id] = 'complete';
+            this.nextMove[_task.id] = 'finish';
         }
         return receipt;
     }
@@ -57,7 +57,7 @@ class Mitigator extends Customer {
 
         if (web3.eth.blockNumber > validationDeadline) {
             receipt = await utils.rate(rating, this, _task.id, "target-ok");
-            this.nextMove[_task.id] = 'abort';
+            this.nextMove[_task.id] = 'complete';
         }
 
         return receipt;
@@ -70,14 +70,14 @@ class UndecidedMitigator extends Mitigator {
     }
 
     init(_task) {
-        this.nextMove[_task.id] = 'abort';
+        this.nextMove[_task.id] = 'complete';
         return Promise.resolve({});
     }
 
-    abort(_task) {
-        var tx = ctr.mitgn.abort.sendTransaction(_task.id, {from: this.addr, gas: GAS_EST});
-        console.log("[", _task.id, "]", this.constructor.name, "\t aborts");
-        this.nextMove[_task.id] = 'complete';
+    complete(_task) {
+        var tx = ctr.mitgn.complete.sendTransaction(_task.id, ctr.rep.address, {from: this.addr, gas: GAS_EST});
+        console.log("[", _task.id, "]", this.constructor.name, "\t completes");
+        this.nextMove[_task.id] = 'finish';
         return web3.eth.getTransactionReceiptMined(tx);
     }
 }
@@ -88,7 +88,7 @@ class LazyMitigator extends Mitigator {
     }
 
     uploadProof(_task) {
-        this.nextMove[_task.id] = 'complete';
+        this.nextMove[_task.id] = 'finish';
         return Promise.resolve({});
     }
 }
@@ -99,7 +99,7 @@ class SelfishMitigator extends Mitigator {
     }
 
     rate(_task) {
-        this.nextMove[_task.id] = 'abort';
+        this.nextMove[_task.id] = 'complete';
         return Promise.resolve({});
     }
 }
@@ -139,45 +139,12 @@ class RationalMitigator extends Mitigator {
         } else if (ctr.mitgn.rejected(_task.id)) {
             rating = 0;
             console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target rejected)");
-        } else if (!ctr.mitgn.validated(_task.id)
-            && ctr.rep.attackTargetRated(_task.id)
-            && targetRating === 0) {
-            rating = 0;
-            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, bad rating received)");
-        } else if (!ctr.mitgn.validated(_task.id)
-            && ctr.rep.attackTargetRated(_task.id)
-            && targetRating === 1) {
-            rating = 1;
-            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no validation, good rating received)");
-        }
-
-        if (typeof rating !== 'undefined') {
-            return super.rate(_task, rating);
         } else {
-            // target did not rate or validate, act selfish
-            this.nextMove[_task.id] = 'abort'
-            return Promise.resolve({});
+            rating = 0;
+            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no target rating received)");
         }
-    }
-}
 
-class AltruisticMitigator extends Mitigator {
-    constructor(_options) {
-        super(_options);
-    }
-
-    rate(_task) {
-        return super.rate(_task, 1);
-    }
-}
-
-class MaliciousMitigator extends Mitigator {
-    constructor(_options) {
-        super(_options);
-    }
-
-    rate(_task) {
-        return super.rate(_task, 0);
+        return super.rate(_task, rating);
     }
 }
 
@@ -194,7 +161,5 @@ module.exports = function(_web3, _ipfs, _ctr, _GAS_EST) {
     module.LazyMitigator = LazyMitigator;
     module.SelfishMitigator = SelfishMitigator;
     module.RationalMitigator = RationalMitigator;
-    module.AltruisticMitigator = AltruisticMitigator;
-    module.MaliciousMitigator = MaliciousMitigator;
     return module;
 }

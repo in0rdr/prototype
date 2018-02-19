@@ -17,7 +17,7 @@ web3.eth.getTransactionReceiptMined = require("./getTransactionReceiptMined.js")
 var accounts = web3.eth.accounts;
 console.log("Currently", accounts.length, "accounts");
 var contracts = loadContracts();
-var ctr, custFilter, taskFilter;
+var ctr, taskFilter, startFilter, completeFilter;
 var utils;
 
 var idAbi = JSON.parse(contracts.identity.interface);
@@ -29,7 +29,7 @@ var Mitigator, Target, Task;
 var customers = [];
 
 var tasks = [];
-var completedTasks = [];
+var finishedTasks = [];
 
 new Promise(async (res) => {
     // deploy contracts
@@ -43,14 +43,13 @@ new Promise(async (res) => {
 }).then(() => {
     // watch events
     console.log("Setting up event filters:");
-    //custFilter = watchCustomers(ctr.id);
     taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
-    console.log(" >> Set up TaskCreated filter");
+    /*console.log(" >> Set up TaskCreated filter");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
     console.log(" >> Set up TaskStarted filter");
-    abortFilter = watchEvents(ctr.mitgn, "TaskAborted");
-    console.log(" >> Set up TaskAborted filter");
-    //custFilter.stopWatching();
+    completeFilter = watchEvents(ctr.mitgn, "TaskCompleted");
+    console.log(" >> Set up TaskCompleted filter");
+    completeFilter.stopWatching();*/
 
     // setup simulation peers and task
     Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
@@ -63,7 +62,7 @@ new Promise(async (res) => {
 }).then(async () => {
     // create customer accounts
     console.log("Creating customer accounts...");
-    return createCustomers(ctr.id, 130);
+    return createCustomers(ctr.id, 8);
     //return false;
 }).then((newCustomers) => {
     if (newCustomers) {
@@ -75,72 +74,55 @@ new Promise(async (res) => {
         console.log("Selecting customer strategies...");
         console.log("Customer id\t Customer addr\t Customer strategy");
 
-        for (var i = 0; i < 20; i++) {
+        /*for (var i = 0; i < 1; i++) {
             customers[i] = new Mitigator.RationalMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 20; i < 40; i++) {
+        for (var i = 1; i < 2; i++) {
             customers[i] = new Target.SatisfiedTarget(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
 
-        for (var i = 40; i < 50; i++) {
+        for (var i = 2; i < 3; i++) {
             customers[i] = new Target.UndecidedTarget(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 50; i < 60; i++) {
+        for (var i = 3; i < 4; i++) {
             customers[i] = new Target.SelfishTarget(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 60; i < 70; i++) {
+        for (var i = 4; i < 5; i++) {
             customers[i] = new Target.DissatisfiedTarget(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 70; i < 80; i++) {
-            customers[i] = new Target.IrrationalTarget(customers[i]);
-            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
-        for (var i = 80; i < 90; i++) {
+        for (var i = 5; i < 6; i++) {
             customers[i] = new Mitigator.UndecidedMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 90; i < 100; i++) {
+        for (var i = 6; i < 7; i++) {
             customers[i] = new Mitigator.LazyMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
-        for (var i = 100; i < 110; i++) {
+        for (var i = 7; i < 8; i++) {
             customers[i] = new Mitigator.SelfishMitigator(customers[i]);
-            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
-        for (var i = 110; i < 120; i++) {
-            customers[i] = new Mitigator.AltruisticMitigator(customers[i]);
-            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
-        for (var i = 120; i < 130; i++) {
-            customers[i] = new Mitigator.MaliciousMitigator(customers[i]);
-            console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
-
-        /*customers[41] = new Target.UndecidedTarget(customers[41]);
-        customers[42] = new Target.SelfishTarget(customers[42]);
-        customers[43] = new Target.DissatisfiedTarget(customers[43]);
-        customers[44] = new Target.IrrationalTarget(customers[44]);
-        customers[45] = new Mitigator.UndecidedMitigator(customers[45]);
-        customers[46] = new Mitigator.LazyMitigator(customers[46]);
-        customers[47] = new Mitigator.SelfishMitigator(customers[47]);
-        customers[48] = new Mitigator.AltruisticMitigator(customers[48]);
-        customers[49] = new Mitigator.MaliciousMitigator(customers[49]);
-        for (var i = 41; i < 50; i++) {
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }*/
 
-        //console.log("Customer types:", customers.map(c => c.constructor.name));
+        customers[0] = new Target.UndecidedTarget(customers[0]);
+        customers[1] = new Target.SelfishTarget(customers[1]);
+        customers[2] = new Target.SatisfiedTarget(customers[2]);
+        customers[3] = new Target.DissatisfiedTarget(customers[3]);
+
+        customers[4] = new Mitigator.UndecidedMitigator(customers[4]);
+        customers[5] = new Mitigator.LazyMitigator(customers[5]);
+        customers[6] = new Mitigator.SelfishMitigator(customers[6]);
+        customers[7] = new Mitigator.RationalMitigator(customers[7]);
     }
 }).then(() => {
     // create new tasks if needed
     //replenishTasks();
-    setInterval(replenishTasks, 30000);
-    //testAll();
+    //setInterval(replenishTasks, 30000);
+    testAll();
 });
 
 function attackerFile() {
@@ -159,8 +141,10 @@ function attackerFile() {
 
 async function testAll() {
     // test all possible combinations of target/mitigator
-    var targets = customers.slice(0, 5);
-    var mitigators = customers.slice(5,11);
+    var targets = customers.slice(0, 4);
+    console.log(targets);
+    var mitigators = customers.slice(4, 8);
+    console.log(mitigators);
     var tx;
     for (t of targets) {
         for (m of mitigators) {
@@ -175,12 +159,14 @@ async function testAll() {
                 ctr.id.address,
                 t.addr,
                 m.addr,
-                Math.floor(Math.random() * 11) + 3,
-                Math.floor(Math.random() * 11) + 17,
+                5,
+                17,
+                27,
                 web3.toWei(1, "ether"),
                 ipfsHash,
                 {from: t.addr, gas: GAS_EST});
             await web3.eth.getTransactionReceiptMined(tx);
+            console.log("Created new task for target", t.constructor.name, "and", m.constructor.name);
         }
     }
 }
@@ -220,8 +206,9 @@ async function replenishTasks() {
             ctr.id.address,
             target.addr,
             mitigator.addr,
-            3,
-            13,
+            Math.floor(Math.random() * 11) + 3,
+            Math.floor(Math.random() * 11) + 17,
+            Math.floor(Math.random() * 11) + 32,
             web3.toWei(1, "ether"),
             ipfsHash,
             {from: target.addr, gas: GAS_EST});
@@ -267,14 +254,19 @@ function watchEvents(_contract, _event) {
                             customerWithAddr(result.args._target),
                             customerWithAddr(result.args._mitigator));
                         tasks.push(task);
+                        console.log("Task list length:", tasks.length);
 
-                        var move, currentPlayer, startTime, serviceDeadline, validationDeadline;
+                        var move, currentPlayer;
+                        var startTime, serviceDeadline, validationDeadline, ratingDeadline;
                         while (true) {
+                            console.log("Endless loop running..");
                             currentPlayer = task.nextCustomer;
+                            console.log("Endless loop, current player is", currentPlayer.constructor.name);
 
                             startTime = ctr.mitgn.getStartTime(task.id).toNumber();
                             serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
                             validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+                            ratingDeadline = startTime + ctr.mitgn.getRatingDeadline(task.id).toNumber();
 
                             console.log("----------------------------------------");
                             console.log(" Task", task.id, ", next move");
@@ -283,29 +275,32 @@ function watchEvents(_contract, _event) {
                             console.log("  - Time:\t");
                             console.log("    - Block:\t\t", web3.eth.blockNumber);
                             console.log("    - Start:\t\t", startTime);
-                            console.log("    - Service:\t\t", serviceDeadline);
-                            console.log("    - Validation:\t", validationDeadline);
+                            console.log("    - ServiceDl:\t\t", serviceDeadline);
+                            console.log("    - ValidationDl:\t", validationDeadline);
+                            console.log("    - RatingDl:\t", ratingDeadline);
 
                             // todo: better advance a random task
-                            move = await task.advance(tasks, completedTasks);
-                            if (typeof move.completedTasks !== 'undefined') {
+                            move = await task.advance(tasks, finishedTasks);
+                            if (typeof move.finishedTasks !== 'undefined') {
                                 break;
                             }
                         }
 
-                        completedTasks = move.completedTasks;
+                        finishedTasks = move.finishedTasks;
                         tasks = move.activeTasks;
-                        console.log("Completed tasks:", completedTasks);
+                        console.log("Finished tasks:", finishedTasks);
                         console.log("Remaining active tasks:", tasks);
                         break;
 
-                    case "TaskAborted":
+                    case "TaskStarted":
+                        break;
+                    case "TaskCompleted":
                         break;
 
                     default:
                 }
             }
-        }
+        } else {console.log("error:", error)}
     });
 }
 

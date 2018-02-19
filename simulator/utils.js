@@ -36,7 +36,13 @@ async function rate(_value, _rater, _taskId, _assertion) {
     });
 
     console.log("[", _taskId, "]", _rater.constructor.name, "\t rates\t", (_value === 1) ? "(+)" : "(-)", reputonHash);
-    var tx = ctr.rep.rate.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _rater.addr, gas: GAS_EST});
+    var tx;
+
+    if (_assertion === 'proof-ok') {
+        tx = ctr.rep.rateAsTarget.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, (_value === 1) ? true : false, {from: _rater.addr, gas: GAS_EST});
+    } else {
+        tx = ctr.rep.rateAsMitigator.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _rater.addr, gas: GAS_EST});
+    }
     return web3.eth.getTransactionReceiptMined(tx);
 }
 
