@@ -18,18 +18,18 @@ class Target extends Customer {
 
     async start(_task) {
         var receipt = Promise.resolve({});
-        //var reputation = await utils.getReputation(_task.mit);
-        //console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
-        //if (reputation < 0.3) {
-        //    this.nextMove[_task.id] = 'finish';
-        //} else if (!ctr.mitgn.completed(_task.id)) {
+        var reputation = await utils.getReputation(_task.mit);
+        console.log("[", _task.id, "]", this.constructor.name, "\t reads reputation", reputation);
+        if (reputation < 0.3) {
+           this.nextMove[_task.id] = 'finish';
+        } else if (!ctr.mitgn.completed(_task.id)) {
             console.log("[", _task.id, "]", this.constructor.name, "\t starts");
             var tx = ctr.mitgn.start.sendTransaction(_task.id, {from: this.addr, value: web3.toWei(1, "ether"), gas: GAS_EST});
             receipt = await web3.eth.getTransactionReceiptMined(tx);
             this.nextMove[_task.id] = 'rate';
-        //} else {
-        //    this.nextMove[_task.id] = 'finish';
-        //}
+        } else {
+           this.nextMove[_task.id] = 'finish';
+        }
 
         return receipt;
     }

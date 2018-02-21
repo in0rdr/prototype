@@ -43,13 +43,13 @@ new Promise(async (res) => {
 }).then(() => {
     // watch events
     console.log("Setting up event filters:");
-    //taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
-    /*console.log(" >> Set up TaskCreated filter");
+    taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
+    console.log(" >> Set up TaskCreated filter");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
     console.log(" >> Set up TaskStarted filter");
     completeFilter = watchEvents(ctr.mitgn, "TaskCompleted");
     console.log(" >> Set up TaskCompleted filter");
-    completeFilter.stopWatching();*/
+    //completeFilter.stopWatching();
 
     // setup simulation peers and task
     Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
@@ -74,7 +74,7 @@ new Promise(async (res) => {
         console.log("Selecting customer strategies...");
         console.log("Customer id\t Customer addr\t Customer strategy");
 
-        /*for (var i = 0; i < 1; i++) {
+        for (var i = 0; i < 1; i++) {
             customers[i] = new Mitigator.RationalMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
@@ -106,9 +106,9 @@ new Promise(async (res) => {
         for (var i = 7; i < 8; i++) {
             customers[i] = new Mitigator.SelfishMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }*/
+        }
 
-        customers[0] = new Target.UndecidedTarget(customers[0]);
+        /*customers[0] = new Target.UndecidedTarget(customers[0]);
         customers[1] = new Target.SelfishTarget(customers[1]);
         customers[2] = new Target.SatisfiedTarget(customers[2]);
         customers[3] = new Target.DissatisfiedTarget(customers[3]);
@@ -116,13 +116,13 @@ new Promise(async (res) => {
         customers[4] = new Mitigator.UndecidedMitigator(customers[4]);
         customers[5] = new Mitigator.LazyMitigator(customers[5]);
         customers[6] = new Mitigator.SelfishMitigator(customers[6]);
-        customers[7] = new Mitigator.RationalMitigator(customers[7]);
+        customers[7] = new Mitigator.RationalMitigator(customers[7]);*/
     }
 }).then(() => {
     // create new tasks if needed
     //replenishTasks();
-    //setInterval(replenishTasks, 30000);
-    testAll();
+    setInterval(replenishTasks, 30000);
+    //testAll();
 });
 
 function attackerFile() {
@@ -335,7 +335,7 @@ function watchEvents(_contract, _event) {
                     default:
                 }
             }
-        } else {console.log("error:", error)}
+        }// else {console.log("error:", error)}
     });
 }
 
