@@ -28,6 +28,7 @@ var Customer = require('./Customer.js');
 var Mitigator, Target, Task;
 var customers = [];
 
+var latestTaskId = 0;
 var tasks = [];
 var finishedTasks = [];
 
@@ -42,14 +43,14 @@ new Promise(async (res) => {
     res(ctr);
 }).then(() => {
     // watch events
-    console.log("Setting up event filters:");
+    /*console.log("Setting up event filters:");
     taskFilter = watchEvents(ctr.mitgn, "TaskCreated");
     console.log(" >> Set up TaskCreated filter");
     startFilter = watchEvents(ctr.mitgn, "TaskStarted");
     console.log(" >> Set up TaskStarted filter");
     completeFilter = watchEvents(ctr.mitgn, "TaskCompleted");
     console.log(" >> Set up TaskCompleted filter");
-    //completeFilter.stopWatching();
+    completeFilter.stopWatching();*/
 
     // setup simulation peers and task
     Mitigator = require('./Mitigator.js')(web3, ipfs, ctr, GAS_EST);
@@ -251,6 +252,44 @@ async function replenishTasks() {
             ipfsHash,
             {from: target.addr, gas: GAS_EST});
         await web3.eth.getTransactionReceiptMined(tx);
+        console.log("Created new task for target", t.constructor.name, "and", m.constructor.name);
+
+        var task = new Task.Task(latestTaskId,
+            customerWithAddr(t.addr),
+            customerWithAddr(m.addr));
+        tasks.push(task);
+        latestTaskId++;
+
+        var move, currentPlayer;
+        var startTime, serviceDeadline, validationDeadline, ratingDeadline;
+        while (true) {
+            currentPlayer = task.nextCustomer;
+            startTime = ctr.mitgn.getStartTime(task.id).toNumber();
+            serviceDeadline = startTime + ctr.mitgn.getServiceDeadline(task.id).toNumber();
+            validationDeadline = startTime + ctr.mitgn.getValidationDeadline(task.id).toNumber();
+            ratingDeadline = startTime + ctr.mitgn.getRatingDeadline(task.id).toNumber();
+
+            console.log("----------------------------------------");
+            console.log(" Task", task.id, ", next move");
+            console.log("  - Profile:\t", currentPlayer.constructor.name);
+            console.log("  - Move:\t", currentPlayer.nextMove);
+            console.log("  - Time:\t");
+            console.log("    - Block:\t\t", web3.eth.blockNumber);
+            console.log("    - Start:\t\t", startTime);
+            console.log("    - ServiceDl:\t\t", serviceDeadline);
+            console.log("    - ValidationDl:\t", validationDeadline);
+            console.log("    - RatingDl:\t", ratingDeadline);
+
+            move = await task.advance(tasks, finishedTasks);
+            if (typeof move.finishedTasks !== 'undefined') {
+                break;
+            }
+        }
+
+        finishedTasks = move.finishedTasks;
+        tasks = move.activeTasks;
+        //console.log("Finished tasks:", finishedTasks);
+        console.log("Remaining active tasks:", tasks);
     }
 }
 
@@ -275,7 +314,7 @@ async function createCustomers(_ctr, _n) {
     return result;
 }
 
-function watchEvents(_contract, _event) {
+/*function watchEvents(_contract, _event) {
     return _contract[_event]({}, { address: _contract.address }).watch(async (error, result) => {
         if (!error) {
             // wait until the transaction that triggered the event
@@ -337,7 +376,7 @@ function watchEvents(_contract, _event) {
             }
         }// else {console.log("error:", error)}
     });
-}
+}*/
 
 function customerWithAddr(_addr) {
     return customers.find(c => c.addr == _addr );
