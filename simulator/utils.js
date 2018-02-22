@@ -41,7 +41,7 @@ async function rate(_value, _rater, _taskId, _assertion) {
     if (_assertion === 'proof-ok') {
         tx = ctr.rep.rateAsTarget.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, (_value === 1) ? true : false, {from: _rater.addr, gas: GAS_EST});
     } else {
-        tx = ctr.rep.rateAsMitigator.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, {from: _rater.addr, gas: GAS_EST});
+        tx = ctr.rep.rateAsMitigator.sendTransaction(ctr.mitgn.address, _taskId, reputonHash, (_value === 1) ? true : false, {from: _rater.addr, gas: GAS_EST});
     }
     return web3.eth.getTransactionReceiptMined(tx);
 }
