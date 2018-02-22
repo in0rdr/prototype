@@ -294,7 +294,7 @@ contract('Mitigation', function(accounts) {
     assert(!r, "attack target should not have rated yet");
 
     // rating the service as mitigator should throw
-    await expectThrow(rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", {from: accounts[1]}));
+    await expectThrow(rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", false, {from: accounts[1]}));
     r = await rep.mitigatorRated.call(0);
     assert(!r, "mitigator should not have rated yet");
 
@@ -572,20 +572,20 @@ contract('Mitigation', function(accounts) {
     // fast forward mine 220 additional blocks
     utils.mine(220);
     currentNum = web3.eth.blockNumber;
-    assert(currentNum > validationDeadline, "service time window should have expired");
-    assert(currentNum < ratingDeadline, "validation time window should not have expired yet");
-
-    // store the original balance before rating
-    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
-    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+    assert(currentNum < ratingDeadline, "rating time window should not have expired yet");
 
     // proof was uploaded,
     // mitigator should be rewarded because target did not validate in time
     var rep = await Reputation.new();
     await expectThrow(rep.rateAsTarget.sendTransaction(m.address, 0, "dummy-reputon", false, {from: accounts[0]}));
-    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", {from: accounts[1]});
-
+    // it should not be possible to upload positive ratings in this case
+    await expectThrow(rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-neg-xy", true, {from: accounts[1]}));
     var r = await rep.mitigatorRated.call(0);
+    assert(!r, "mitigator rating should not be registered yet");
+    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", false, {from: accounts[1]});
+
+    r = await rep.mitigatorRated.call(0);
     assert(r, "mitigator should have rated");
     r = await m.rejected.call(0);
     assert(!r, "attack target should not have rated the service");
@@ -595,6 +595,10 @@ contract('Mitigation', function(accounts) {
     utils.mine(100);
     currentNum = web3.eth.blockNumber;
     assert(currentNum > ratingDeadline, "final rating time window should have expired");
+
+    // store the original balance before completion
+    attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
 
     // complete
     await m.complete.sendTransaction(0, rep.address, {from: accounts[1]});
@@ -608,11 +612,106 @@ contract('Mitigation', function(accounts) {
     mitigatorDiff = newMitigatorBalance - mitigatorBalance;
     var state = await m.getState.call(0)
     var price = await m.getPrice.call(0)
+    // console.log("state:", state)
+    // console.log("price:", web3.fromWei(price, "ether").toNumber())
+    // console.log("targetdiff:", targetDiff)
+    // console.log("mitigatorDiff:", mitigatorDiff)
+    assert(mitigatorDiff < 1 && mitigatorDiff > 0.98, "the mitigator should be rewarded");
+    assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no refund");
+  });
+
+  it("escalation case should not pay out", async function() {
+    var id = await Identity.new();
+    await id.newCustomer.sendTransaction();
+    await id.newCustomer.sendTransaction({from: accounts[1]});
+
+    var m = await Mitigation.new();
+    var tx = await m.newTask.sendTransaction(
+        id.address,
+        accounts[0],
+        accounts[1],
+        100,
+        200,
+        300,
+        web3.toWei(1, "ether"),
+        "ipfs-attackers-file-hash");
+
+    await m.approve.sendTransaction(0, {from: accounts[1]});
+    var a = await m.approved.call(0);
+    assert(a, "the mitigator should approve mitigation contracts");
+
+    await m.start.sendTransaction(0, {from: accounts[0], value: web3.toWei(1, "ether")});
+    var s = await m.started.call(0);
+    assert(s, "the mitigation task should have started");
+
+    var startTime = await m.getStartTime.call(0);
+    var serviceDeadline = startTime.plus(100);
+    var validationDeadline = startTime.plus(200);
+    var ratingDeadline = startTime.plus(300);
+    var currentNum = web3.eth.blockNumber;
+    assert(currentNum < serviceDeadline, "current block number should be less than serviceDeadline");
+
+    // upload proof
+    await m.uploadProof.sendTransaction(0, "dummy-proof", {from: accounts[1]});
+    var p = await m.getProof.call(0);
+    assert.equal(p, "dummy-proof", "mitigator should be allowed to submit proofs during service time window");
+    p = await m.proofUploaded.call(0);
+    assert(p, "proof should be uploaded");
+
+    // fast forward mine 110 additional blocks
+    utils.mine(110);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > serviceDeadline, "service time window should have expired");
+    assert(currentNum < validationDeadline, "validation time window should not have expired yet");
+
+    // rate negatively as target
+    var rep = await Reputation.new();
+    rep.rateAsTarget.sendTransaction(m.address, 0, "dummy-reputon", false, {from: accounts[0]});
+    var r = await m.rejected.call(0);
+    assert(r, "attack target should have rated the service");
+
+    // fast forward mine 110 additional blocks
+    utils.mine(110);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > validationDeadline, "validation time window should have expired");
+    assert(currentNum < ratingDeadline, "rating time window should not have expired yet");
+
+    // rate negatively as mitigator
+    // this allows the mitigator to open dispute after completion
+    rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-2", false, {from: accounts[1]});
+    r = await rep.mitigatorRated.call(0)
+    assert(r, "mitigator should have rated the service");
+
+    utils.mine(110);
+    currentNum = web3.eth.blockNumber;
+    assert(currentNum > ratingDeadline, "final rating time window should have expired");
+
+    // store the original balance before completion
+    var attackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var mitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+
+    // try to complete as mitigator
+    await expectThrow(m.complete.sendTransaction(0, rep.address, {from: accounts[1]}));
+    a = await m.completed.call(0);
+    assert(!a, "task should not be completed, escalation required");
+
+    // try to complete as target
+    await expectThrow(m.complete.sendTransaction(0, rep.address, {from: accounts[0]}));
+    a = await m.completed.call(0);
+    assert(!a, "task should not be completed, escalation required");
+
+    // check balance after completion
+    var newAttackTargetBalance = web3.fromWei(web3.eth.getBalance(accounts[0]).toNumber(), "ether");
+    var newMitigatorBalance = web3.fromWei(web3.eth.getBalance(accounts[1]).toNumber(), "ether");
+    var targetDiff = attackTargetBalance - newAttackTargetBalance;
+    var mitigatorDiff = newMitigatorBalance - mitigatorBalance;
+    var state = await m.getState.call(0)
+    var price = await m.getPrice.call(0)
     //console.log("state:", state)
     //console.log("price:", web3.fromWei(price, "ether").toNumber())
     //console.log("targetdiff:", targetDiff)
     //console.log("mitigatorDiff:", mitigatorDiff)
-    assert(mitigatorDiff < 1 && mitigatorDiff > 0.98, "the mitigator should be rewarded");
+    assert(mitigatorDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid,");
     assert(targetDiff < web3.toWei(0.003, "ether"), "only the gas costs should be paid, no refund");
   });
 

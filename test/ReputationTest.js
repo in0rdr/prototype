@@ -105,7 +105,7 @@ contract('Reputation', function(accounts) {
     assert(currentNum > validationDeadline, "validation time window should have expired");
 
     var rep = await Reputation.new();
-    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", {from: accounts[1]});
+    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon", false, {from: accounts[1]});
     var r = await rep.mitigatorRated.call(0);
     assert(r, "mitigator should have rated");
     r = await rep.attackTargetRated.call(0);
@@ -172,14 +172,14 @@ contract('Reputation', function(accounts) {
 
     r = await rep.mitigatorRated.call(0);
     assert(!r, "mitigator should not have rated yet");
-    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-from-mitigator", {from: accounts[1]});
+    await rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-from-mitigator", false, {from: accounts[1]});
     r = await rep.mitigatorRated.call(0);
     assert(r, "mitigator should have rated");
     r = await rep.attackTargetRated.call(0);
     assert(r, "attack target should have rated");
 
     // repeated rating, should throw
-    await expectThrow(rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-from-mitigator-2", {from: accounts[1]}));
+    await expectThrow(rep.rateAsMitigator.sendTransaction(m.address, 0, "dummy-reputon-from-mitigator-2", false, {from: accounts[1]}));
     r = await rep.getReputon.call(0, 1);
     assert.equal(r, "dummy-reputon-from-mitigator", "reputon should be uploaded");
   });
