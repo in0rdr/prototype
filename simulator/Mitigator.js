@@ -110,38 +110,17 @@ class RationalMitigator extends Mitigator {
     }
 
     async rate(_task) {
-        // fetch target rating
-        var targetRating;
-
-        try {
-            var repHash = ctr.rep.getReputon(_task.id, 0);
-
-            var reputon = await new Promise((resolve, reject) => {
-                ipfs.files.cat(`/ipfs/${repHash}`, (err, file) => {
-                    if (err) reject(err);
-                    resolve(JSON.parse(file.toString()));
-                });
-            });
-            targetRating = reputon.reputons[0].rating;
-        } catch (e) {
-            // assume a malicous rating if not formatted
-            // as reputon media type or if attack target did not rate
-            targetRating = 0;
-        }
-
-        console.log("[", _task.id, "]", this.constructor.name, "\t reads rating: \t", targetRating);
-
-        // rate according to T's expectation
+        // rate according to T's expectations
         var rating;
         if (ctr.mitgn.acknowledged(_task.id)) {
             rating = 1;
-            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target acknowledged)");
-        } else if (ctr.mitgn.rejected(_task.id)) {
-            rating = 0;
-            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(target rejected)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target acknowledged)");
         } else {
+            // either the target rejected,
+            // or gave no feedback at all,
+            // in any case rate negatively
             rating = 0;
-            console.log("[", _task.id, "]", this.constructor.name, "\t would rate \t", rating, "(no target rating received)");
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(target rejected or no feedback)");
         }
 
         return super.rate(_task, rating);

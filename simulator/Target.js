@@ -84,7 +84,16 @@ class SatisfiedTarget extends Target {
     }
 
     rate(_task) {
-        return super.rate(_task, 1);
+        // rate according to M's expectations
+        var rating;
+        if (ctr.mitgn.proofUploaded(_task.id)) {
+            rating = 1;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(proof uploaded)");
+        } else {
+            rating = 0;
+            console.log("[", _task.id, "]", this.constructor.name, "\t rates \t", rating, "(proof not uploaded)");
+        }
+        return super.rate(_task, rating);
     }
 }
 
@@ -94,6 +103,9 @@ class DissatisfiedTarget extends Target {
     }
 
     rate(_task) {
+        // always rate negatively,
+        // even when a proof was uploaded
+        console.log("[", _task.id, "]", this.constructor.name, "\t rates 0\t (proof not uploaded)");
         return super.rate(_task, 0);
     }
 }
