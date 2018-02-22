@@ -252,11 +252,11 @@ async function replenishTasks() {
             ipfsHash,
             {from: target.addr, gas: GAS_EST});
         await web3.eth.getTransactionReceiptMined(tx);
-        console.log("Created new task for target", t.constructor.name, "and", m.constructor.name);
+        console.log("Created new task for target", target.constructor.name, "and", mitigator.constructor.name);
 
         var task = new Task.Task(latestTaskId,
-            customerWithAddr(t.addr),
-            customerWithAddr(m.addr));
+            customerWithAddr(target.addr),
+            customerWithAddr(mitigator.addr));
         tasks.push(task);
         latestTaskId++;
 
