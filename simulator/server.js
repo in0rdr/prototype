@@ -75,7 +75,7 @@ new Promise(async (res) => {
         console.log("Selecting customer strategies...");
         console.log("Customer id\t Customer addr\t Customer strategy");
 
-        for (var i = 0; i < 1; i++) {
+        /*for (var i = 0; i < 1; i++) {
             customers[i] = new Mitigator.RationalMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
         }
@@ -107,9 +107,9 @@ new Promise(async (res) => {
         for (var i = 7; i < 8; i++) {
             customers[i] = new Mitigator.SelfishMitigator(customers[i]);
             console.log(i.toString(), "\t ", customers[i].addr, "\t", customers[i].constructor.name);
-        }
+        }*/
 
-        /*customers[0] = new Target.UndecidedTarget(customers[0]);
+        customers[0] = new Target.UndecidedTarget(customers[0]);
         customers[1] = new Target.SelfishTarget(customers[1]);
         customers[2] = new Target.SatisfiedTarget(customers[2]);
         customers[3] = new Target.DissatisfiedTarget(customers[3]);
@@ -117,13 +117,13 @@ new Promise(async (res) => {
         customers[4] = new Mitigator.UndecidedMitigator(customers[4]);
         customers[5] = new Mitigator.LazyMitigator(customers[5]);
         customers[6] = new Mitigator.SelfishMitigator(customers[6]);
-        customers[7] = new Mitigator.RationalMitigator(customers[7]);*/
+        customers[7] = new Mitigator.RationalMitigator(customers[7]);
     }
 }).then(() => {
     // create new tasks if needed
     //replenishTasks();
-    setInterval(replenishTasks, 30000);
-    //testAll();
+    //setInterval(replenishTasks, 30000);
+    testAll();
 });
 
 function attackerFile() {
@@ -153,7 +153,7 @@ async function testAll() {
             var ipfsHash = await attackerFile();
 
             // fund target
-            tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: t.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+            tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: t.addr, value: web3.toWei(10, "ether"), gas: GAS_EST});
             await web3.eth.getTransactionReceiptMined(tx);
 
             // create mitigation contract
@@ -162,8 +162,8 @@ async function testAll() {
                 t.addr,
                 m.addr,
                 3,
-                6,
-                9,
+                7,
+                11,
                 web3.toWei(1, "ether"),
                 ipfsHash,
                 {from: t.addr, gas: GAS_EST});
@@ -233,7 +233,7 @@ async function replenishTasks() {
         //var mitigator = customers[8]
 
         // fund target
-        var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(2, "ether"), gas: GAS_EST});
+        var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: target.addr, value: web3.toWei(10, "ether"), gas: GAS_EST});
         await web3.eth.getTransactionReceiptMined(tx);
 
         console.log("Creating a new task with");
@@ -301,7 +301,7 @@ async function createCustomers(_ctr, _n) {
         web3.personal.unlockAccount(acc, "secret", 0);
 
         // fund customer
-        var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: acc, value: web3.toWei(2, "ether"), gas: GAS_EST});
+        var tx = web3.eth.sendTransaction({from: web3.eth.coinbase, to: acc, value: web3.toWei(10, "ether"), gas: GAS_EST});
         await web3.eth.getTransactionReceiptMined(tx);
 
         // create customer id
