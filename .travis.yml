@@ -1,9 +1,0 @@
-dist: trusty
-sudo: required
-language: node_js
-node_js:
-  - "7"
-matrix:
-  fast_finish: true
-script:
-- npm run all
